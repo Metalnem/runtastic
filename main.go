@@ -14,6 +14,7 @@ const baseURL = "https://appws.runtastic.com"
 const connectTimeout = 10 * time.Second
 
 var headers = map[string]string{
+	"Content-Type": "application/json",
 	"X-App-Key":    "at.runtastic.runtastic.pro",
 	"X-Auth-Token": "8e6cad82a70fe7ffa2102d5a0c1bb8a780e331c9",
 	"X-Date":       "2016.09.12 14:34:40",
@@ -44,7 +45,7 @@ func login(email, password string) (*authenticatedUser, error) {
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodGet, baseURL+"/webapps/services/auth/login", body)
+	req, err := http.NewRequest(http.MethodPost, baseURL+"/webapps/services/auth/login", body)
 
 	if err != nil {
 		return nil, err
