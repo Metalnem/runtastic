@@ -33,9 +33,7 @@ type authenticatedUser struct {
 }
 
 func login(email, password string) (*authenticatedUser, error) {
-	body := new(bytes.Buffer)
-
-	err := json.NewEncoder(body).Encode(loginRequest{
+	b, err := json.Marshal(loginRequest{
 		Email:                email,
 		AdditionalAttributes: []string{"accessToken"},
 		Password:             password,
@@ -45,6 +43,7 @@ func login(email, password string) (*authenticatedUser, error) {
 		return nil, err
 	}
 
+	body := bytes.NewReader(b)
 	req, err := http.NewRequest(http.MethodPost, baseURL+"/webapps/services/auth/login", body)
 
 	if err != nil {
