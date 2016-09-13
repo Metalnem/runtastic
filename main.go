@@ -6,9 +6,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -18,6 +20,11 @@ const (
 	baseURL    = "https://appws.runtastic.com"
 	timeFormat = "2006-01-02 15:04:05"
 	timeout    = 10 * time.Second
+)
+
+var (
+	email    = flag.String("email", "", "Email (required)")
+	password = flag.String("password", "", "Password (required)")
 )
 
 type loginRequest struct {
@@ -89,7 +96,14 @@ func login(email, password string) (*authenticatedUser, error) {
 }
 
 func main() {
-	user, err := login("metalnem@mijailovic.net", "")
+	flag.Parse()
+
+	if *email == "" || *password == "" {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	user, err := login(*email, *password)
 
 	if err != nil {
 		log.Fatal(err)
