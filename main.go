@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,20 +12,18 @@ import (
 	"time"
 )
 
-const baseURL = "https://appws.runtastic.com"
-const connectTimeout = 10 * time.Second
-
-var headers = map[string]string{
-	"Content-Type": "application/json",
-	"X-App-Key":    "at.runtastic.runtastic.pro",
-	"X-Auth-Token": "8e6cad82a70fe7ffa2102d5a0c1bb8a780e331c9",
-	"X-Date":       "2016.09.12 14:34:40",
-}
+const (
+	appKey     = "com.runtastic.windows.pushup.pro"
+	appSecret  = "H55779eb12238015988c9badf27cf5b5f11faff341ea9722b8d178290323477f"
+	baseURL    = "https://appws.runtastic.com"
+	timeFormat = "2006-01-02 15:04:05"
+	timeout    = 10 * time.Second
+)
 
 type loginRequest struct {
-	Email                string   `json:"email"`
-	AdditionalAttributes []string `json:"additionalAttributes"`
-	Password             string   `json:"password"`
+	Email      string   `json:"email"`
+	Attributes []string `json:"additionalAttributes"`
+	Password   string   `json:"password"`
 }
 
 type authenticatedUser struct {
@@ -32,11 +32,18 @@ type authenticatedUser struct {
 	Uidt        string `json:"uidt"`
 }
 
+func buildAuthToken(t time.Time) string {
+	s := fmt.Sprintf("--%s--%s--%s--", appKey, appSecret, t.Format(timeFormat))
+	hash := sha1.Sum([]byte(s))
+
+	return hex.EncodeToString(hash[:])
+}
+
 func login(email, password string) (*authenticatedUser, error) {
 	b, err := json.Marshal(loginRequest{
-		Email:                email,
-		AdditionalAttributes: []string{"accessToken"},
-		Password:             password,
+		Email:      email,
+		Attributes: []string{"accessToken"},
+		Password:   password,
 	})
 
 	if err != nil {
@@ -50,11 +57,15 @@ func login(email, password string) (*authenticatedUser, error) {
 		return nil, err
 	}
 
-	for key, value := range headers {
-		req.Header.Set(key, value)
-	}
+	t := time.Now()
+	authToken := buildAuthToken(t)
 
-	client := &http.Client{Timeout: connectTimeout}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-App-Key", appKey)
+	req.Header.Set("X-Date", t.Format(timeFormat))
+	req.Header.Set("X-Auth-Token", authToken)
+
+	client := &http.Client{Timeout: timeout}
 	resp, err := client.Do(req)
 
 	if err != nil {
