@@ -50,6 +50,16 @@ func buildAuthToken(t time.Time) string {
 	return hex.EncodeToString(hash[:])
 }
 
+func setAuthHeaders(header http.Header) {
+	t := time.Now()
+	authToken := buildAuthToken(t)
+
+	header.Set("Content-Type", "application/json")
+	header.Set("X-App-Key", appKey)
+	header.Set("X-Date", t.Format(timeFormat))
+	header.Set("X-Auth-Token", authToken)
+}
+
 func login(email, password string) (*authenticatedUser, error) {
 	b, err := json.Marshal(loginRequest{
 		Email:      email,
@@ -68,13 +78,7 @@ func login(email, password string) (*authenticatedUser, error) {
 		return nil, err
 	}
 
-	t := time.Now()
-	authToken := buildAuthToken(t)
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-App-Key", appKey)
-	req.Header.Set("X-Date", t.Format(timeFormat))
-	req.Header.Set("X-Auth-Token", authToken)
+	setAuthHeaders(req.Header)
 
 	client := &http.Client{Timeout: timeout}
 	resp, err := client.Do(req)
