@@ -15,11 +15,13 @@ import (
 )
 
 const (
-	appKey     = "com.runtastic.windows.pushup.pro"
-	appSecret  = "H55779eb12238015988c9badf27cf5b5f11faff341ea9722b8d178290323477f"
-	baseURL    = "https://appws.runtastic.com"
-	timeFormat = "2006-01-02 15:04:05"
-	timeout    = 10 * time.Second
+	appKey           = "com.runtastic.windows.pushup.pro"
+	appSecret        = "H55779eb12238015988c9badf27cf5b5f11faff341ea9722b8d178290323477f"
+	baseURL          = "https://appws.runtastic.com"
+	cookieSessionID  = "JSESSIONID"
+	cookieAppSession = "_runtastic_appws_session"
+	timeFormat       = "2006-01-02 15:04:05"
+	timeout          = 10 * time.Second
 )
 
 var (
@@ -37,6 +39,8 @@ type authenticatedUser struct {
 	UserID      string `json:"userId"`
 	AccessToken string `json:"accessToken"`
 	Uidt        string `json:"uidt"`
+	SessionID   string
+	AppSession  string
 }
 
 func buildAuthToken(t time.Time) string {
@@ -88,8 +92,17 @@ func login(email, password string) (*authenticatedUser, error) {
 	var user authenticatedUser
 	decoder := json.NewDecoder(resp.Body)
 
-	if err := decoder.Decode(&user); err != nil {
+	if err = decoder.Decode(&user); err != nil {
 		return nil, err
+	}
+
+	for _, cookie := range resp.Cookies() {
+		switch cookie.Name {
+		case cookieSessionID:
+			user.SessionID = cookie.Value
+		case cookieAppSession:
+			user.AppSession = cookie.Value
+		}
 	}
 
 	return &user, nil
@@ -110,4 +123,6 @@ func main() {
 	}
 
 	fmt.Println(user.AccessToken)
+	fmt.Println(user.SessionID)
+	fmt.Println(user.AppSession)
 }
