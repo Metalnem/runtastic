@@ -8,6 +8,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -15,13 +16,12 @@ import (
 )
 
 const (
-	appKey           = "com.runtastic.windows.pushup.pro"
-	appSecret        = "H55779eb12238015988c9badf27cf5b5f11faff341ea9722b8d178290323477f"
-	baseURL          = "https://appws.runtastic.com"
-	cookieSessionID  = "JSESSIONID"
-	cookieAppSession = "_runtastic_appws_session"
-	timeFormat       = "2006-01-02 15:04:05"
-	timeout          = 10 * time.Second
+	appKey     = "com.runtastic.windows.pushup.pro"
+	appSecret  = "H55779eb12238015988c9badf27cf5b5f11faff341ea9722b8d178290323477f"
+	appSession = "_runtastic_appws_session"
+	baseURL    = "https://appws.runtastic.com"
+	timeFormat = "2006-01-02 15:04:05"
+	timeout    = 10 * time.Second
 )
 
 var (
@@ -39,7 +39,6 @@ type authenticatedUser struct {
 	UserID      string `json:"userId"`
 	AccessToken string `json:"accessToken"`
 	Uidt        string `json:"uidt"`
-	SessionID   string
 	AppSession  string
 }
 
@@ -101,15 +100,40 @@ func login(email, password string) (*authenticatedUser, error) {
 	}
 
 	for _, cookie := range resp.Cookies() {
-		switch cookie.Name {
-		case cookieSessionID:
-			user.SessionID = cookie.Value
-		case cookieAppSession:
+		if cookie.Name == appSession {
 			user.AppSession = cookie.Value
 		}
 	}
 
 	return &user, nil
+}
+
+func getActivities(user *authenticatedUser) ([]byte, error) {
+	url := baseURL + "/webapps/services/runsessions/v3/sync?access_token=" + user.AccessToken
+	body := bytes.NewReader([]byte(`{"syncedUntil":"0"}`))
+	req, err := http.NewRequest(http.MethodPost, url, body)
+
+	if err != nil {
+		return nil, err
+	}
+
+	setAuthHeaders(req.Header)
+	req.AddCookie(&http.Cookie{Name: appSession, Value: user.AppSession})
+
+	client := &http.Client{Timeout: timeout}
+	resp, err := client.Do(req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.New(resp.Status)
+	}
+
+	return ioutil.ReadAll(resp.Body)
 }
 
 func main() {
@@ -126,7 +150,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println(user.AccessToken)
-	fmt.Println(user.SessionID)
-	fmt.Println(user.AppSession)
+	activities, err := getActivities(user)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(string(activities))
 }
