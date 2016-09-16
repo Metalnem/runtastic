@@ -8,7 +8,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -29,6 +28,8 @@ var (
 	password = flag.String("password", "", "Password (required)")
 )
 
+type sessionID string
+
 type loginRequest struct {
 	Email      string   `json:"email"`
 	Attributes []string `json:"additionalAttributes"`
@@ -40,6 +41,17 @@ type authenticatedUser struct {
 	AccessToken string `json:"accessToken"`
 	Uidt        string `json:"uidt"`
 	SessionID   string
+}
+
+type activities struct {
+	SyncedUntil string    `json:"syncedUntil"`
+	HasMore     string    `json:"moreItemsAvailable"`
+	Sessions    []session `json:"sessions"`
+}
+
+type session struct {
+	ID        string `json:"id"`
+	DeletedAt string `json:"deletedAt"`
 }
 
 func buildAuthToken(t time.Time) string {
@@ -93,23 +105,23 @@ func login(email, password string) (*authenticatedUser, error) {
 		return nil, errors.New(resp.Status)
 	}
 
-	var user authenticatedUser
+	var data authenticatedUser
 	decoder := json.NewDecoder(resp.Body)
 
-	if err = decoder.Decode(&user); err != nil {
+	if err = decoder.Decode(&data); err != nil {
 		return nil, err
 	}
 
 	for _, cookie := range resp.Cookies() {
 		if cookie.Name == appSession {
-			user.SessionID = cookie.Value
+			data.SessionID = cookie.Value
 		}
 	}
 
-	return &user, nil
+	return &data, nil
 }
 
-func getActivities(user *authenticatedUser) ([]byte, error) {
+func getSessions(user *authenticatedUser) ([]sessionID, error) {
 	url := baseURL + "/webapps/services/runsessions/v3/sync?access_token=" + user.AccessToken
 	body := bytes.NewReader([]byte(`{"syncedUntil":"0"}`))
 	req, err := http.NewRequest(http.MethodPost, url, body)
@@ -134,7 +146,22 @@ func getActivities(user *authenticatedUser) ([]byte, error) {
 		return nil, errors.New(resp.Status)
 	}
 
-	return ioutil.ReadAll(resp.Body)
+	var data activities
+	decoder := json.NewDecoder(resp.Body)
+
+	if err = decoder.Decode(&data); err != nil {
+		return nil, err
+	}
+
+	var sessions []sessionID
+
+	for _, session := range data.Sessions {
+		if session.DeletedAt == "" {
+			sessions = append(sessions, sessionID(session.ID))
+		}
+	}
+
+	return sessions, nil
 }
 
 func main() {
@@ -148,15 +175,16 @@ func main() {
 	user, err := login(*email, *password)
 
 	if err != nil {
-		log.Fatal("Peder!")
 		log.Fatal(err)
 	}
 
-	activities, err := getActivities(user)
+	sessions, err := getSessions(user)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println(string(activities))
+	for _, session := range sessions {
+		fmt.Println(session)
+	}
 }
