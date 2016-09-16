@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	appKey     = "com.runtastic.windows.pushup.pro"
-	appSecret  = "H55779eb12238015988c9badf27cf5b5f11faff341ea9722b8d178290323477f"
+	appKey     = "com.runtastic.android"
+	appSecret  = "T68bA6dHk2ayW1Y39BQdEnUmGqM8Zq1SFZ3kNas3KYDjp471dJNXLcoYWsDBd1mH"
 	appSession = "_runtastic_appws_session"
 	baseURL    = "https://appws.runtastic.com"
 	timeFormat = "2006-01-02 15:04:05"
@@ -39,7 +39,7 @@ type authenticatedUser struct {
 	UserID      string `json:"userId"`
 	AccessToken string `json:"accessToken"`
 	Uidt        string `json:"uidt"`
-	AppSession  string
+	SessionID   string
 }
 
 func buildAuthToken(t time.Time) string {
@@ -49,14 +49,15 @@ func buildAuthToken(t time.Time) string {
 	return hex.EncodeToString(hash[:])
 }
 
-func setAuthHeaders(header http.Header) {
+func setHeaders(header http.Header) {
 	t := time.Now()
 	authToken := buildAuthToken(t)
 
 	header.Set("Content-Type", "application/json")
 	header.Set("X-App-Key", appKey)
-	header.Set("X-Date", t.Format(timeFormat))
+	header.Set("X-App-Version", "6.9.2")
 	header.Set("X-Auth-Token", authToken)
+	header.Set("X-Date", t.Format(timeFormat))
 }
 
 func login(email, password string) (*authenticatedUser, error) {
@@ -77,7 +78,7 @@ func login(email, password string) (*authenticatedUser, error) {
 		return nil, err
 	}
 
-	setAuthHeaders(req.Header)
+	setHeaders(req.Header)
 
 	client := &http.Client{Timeout: timeout}
 	resp, err := client.Do(req)
@@ -101,7 +102,7 @@ func login(email, password string) (*authenticatedUser, error) {
 
 	for _, cookie := range resp.Cookies() {
 		if cookie.Name == appSession {
-			user.AppSession = cookie.Value
+			user.SessionID = cookie.Value
 		}
 	}
 
@@ -117,8 +118,8 @@ func getActivities(user *authenticatedUser) ([]byte, error) {
 		return nil, err
 	}
 
-	setAuthHeaders(req.Header)
-	req.AddCookie(&http.Cookie{Name: appSession, Value: user.AppSession})
+	setHeaders(req.Header)
+	req.AddCookie(&http.Cookie{Name: appSession, Value: user.SessionID})
 
 	client := &http.Client{Timeout: timeout}
 	resp, err := client.Do(req)
@@ -147,6 +148,7 @@ func main() {
 	user, err := login(*email, *password)
 
 	if err != nil {
+		log.Fatal("Peder!")
 		log.Fatal(err)
 	}
 
