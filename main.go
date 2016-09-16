@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -122,42 +123,58 @@ func login(email, password string) (*authenticatedUser, error) {
 }
 
 func getSessions(user *authenticatedUser) ([]sessionID, error) {
-	url := baseURL + "/webapps/services/runsessions/v3/sync?access_token=" + user.AccessToken
-	body := bytes.NewReader([]byte(`{"syncedUntil":"0"}`))
-	req, err := http.NewRequest(http.MethodPost, url, body)
-
-	if err != nil {
-		return nil, err
-	}
-
-	setHeaders(req.Header)
-	req.AddCookie(&http.Cookie{Name: appSession, Value: user.SessionID})
-
-	client := &http.Client{Timeout: timeout}
-	resp, err := client.Do(req)
-
-	if err != nil {
-		return nil, err
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New(resp.Status)
-	}
-
-	var data activities
-	decoder := json.NewDecoder(resp.Body)
-
-	if err = decoder.Decode(&data); err != nil {
-		return nil, err
-	}
-
 	var sessions []sessionID
 
-	for _, session := range data.Sessions {
-		if session.DeletedAt == "" {
-			sessions = append(sessions, sessionID(session.ID))
+	syncedUntil := "0"
+	hasMore := true
+
+	for hasMore {
+		url := baseURL + "/webapps/services/runsessions/v3/sync?access_token=" + user.AccessToken
+		body := bytes.NewReader([]byte(fmt.Sprintf("{\"syncedUntil\":\"%s\"}", syncedUntil)))
+		req, err := http.NewRequest(http.MethodPost, url, body)
+
+		if err != nil {
+			return nil, err
+		}
+
+		setHeaders(req.Header)
+		req.AddCookie(&http.Cookie{Name: appSession, Value: user.SessionID})
+
+		client := &http.Client{Timeout: timeout}
+		resp, err := client.Do(req)
+
+		if err != nil {
+			return nil, err
+		}
+
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return nil, errors.New(resp.Status)
+		}
+
+		var data activities
+		decoder := json.NewDecoder(resp.Body)
+
+		if err = decoder.Decode(&data); err != nil {
+			return nil, err
+		}
+
+		for _, session := range data.Sessions {
+			if session.DeletedAt == "" {
+				l := len(sessions)
+				id := sessionID(session.ID)
+
+				if l == 0 || sessions[l-1] != id {
+					sessions = append(sessions, id)
+				}
+			}
+		}
+
+		syncedUntil = data.SyncedUntil
+
+		if hasMore, err = strconv.ParseBool(data.HasMore); err != nil {
+			return nil, err
 		}
 	}
 
