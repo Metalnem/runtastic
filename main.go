@@ -58,7 +58,7 @@ type loginRequest struct {
 }
 
 type appUser struct {
-	UserID      string `json:"userId"`
+	ID          string `json:"userId"`
 	AccessToken string `json:"accessToken"`
 	SessionID   string
 }
@@ -79,13 +79,13 @@ type activities struct {
 }
 
 type session struct {
-	ID        string `json:"id"`
-	DeletedAt string `json:"deletedAt"`
+	ID        sessionID `json:"id"`
+	DeletedAt string    `json:"deletedAt"`
 }
 
 type sample struct {
 	Data struct {
-		ID string `json:"ID"`
+		ID sessionID `json:"ID"`
 	} `json:"data"`
 }
 
@@ -270,7 +270,7 @@ func getSessions(user *user) ([]sessionID, error) {
 }
 
 func getExportID(user *user, id sessionID) (exportID, error) {
-	url := fmt.Sprintf("%s/samples/v2/users/%s/samples/%s", baseHubsURL, user.UserID, id)
+	url := fmt.Sprintf("%s/samples/v2/users/%s/samples/%s", baseHubsURL, user.ID, id)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 
 	if err != nil {
