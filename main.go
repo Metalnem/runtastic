@@ -17,14 +17,26 @@ import (
 )
 
 const (
-	appKey    = "com.runtastic.android"
+	appKeyAndroid = "com.runtastic.android"
+	appKeyEmber   = "com.runtastic.ember"
+
 	appSecret = "T68bA6dHk2ayW1Y39BQdEnUmGqM8Zq1SFZ3kNas3KYDjp471dJNXLcoYWsDBd1mH"
 
-	baseAppURL = "https://appws.runtastic.com"
-	baseWebURL = "https://www.runtastic.com"
+	appVersionAndroid = "6.9.2"
+	appVersionEmber   = "1.0"
+
+	baseAppURL  = "https://appws.runtastic.com"
+	baseHubsURL = "https://hubs.runtastic.com"
+	baseWebURL  = "https://www.runtastic.com"
 
 	cookieAppSession = "_runtastic_appws_session"
 	cookieWebSession = "_runtastic_session"
+
+	headerAppKey      = "X-App-Key"
+	headerAppVersion  = "X-App-Version"
+	headerAuthToken   = "X-Auth-Token"
+	headerContentType = "Content-Type"
+	headerDate        = "X-Date"
 
 	timeFormat = "2006-01-02 15:04:05"
 	timeout    = 10 * time.Second
@@ -70,7 +82,7 @@ type session struct {
 }
 
 func buildAuthToken(t time.Time) string {
-	s := fmt.Sprintf("--%s--%s--%s--", appKey, appSecret, t.Format(timeFormat))
+	s := fmt.Sprintf("--%s--%s--%s--", appKeyAndroid, appSecret, t.Format(timeFormat))
 	hash := sha1.Sum([]byte(s))
 
 	return hex.EncodeToString(hash[:])
@@ -80,11 +92,11 @@ func setHeaders(header http.Header) {
 	t := time.Now()
 	authToken := buildAuthToken(t)
 
-	header.Set("Content-Type", "application/json")
-	header.Set("X-App-Key", appKey)
-	header.Set("X-App-Version", "6.9.2")
-	header.Set("X-Auth-Token", authToken)
-	header.Set("X-Date", t.Format(timeFormat))
+	header.Set(headerContentType, "application/json")
+	header.Set(headerAppKey, appKeyAndroid)
+	header.Set(headerAppVersion, appVersionAndroid)
+	header.Set(headerAuthToken, authToken)
+	header.Set(headerDate, t.Format(timeFormat))
 }
 
 func loginApp(email, password string) (*appUser, error) {
