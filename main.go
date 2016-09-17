@@ -32,6 +32,7 @@ const (
 	cookieAppSession = "_runtastic_appws_session"
 	cookieWebSession = "_runtastic_session"
 
+	headerAccept      = "Accept"
 	headerAppKey      = "X-App-Key"
 	headerAppVersion  = "X-App-Version"
 	headerAuthToken   = "X-Auth-Token"
@@ -48,6 +49,7 @@ var (
 )
 
 type sessionID string
+type exportID string
 
 type loginRequest struct {
 	Email      string   `json:"email"`
@@ -79,6 +81,12 @@ type activities struct {
 type session struct {
 	ID        string `json:"id"`
 	DeletedAt string `json:"deletedAt"`
+}
+
+type sample struct {
+	Data struct {
+		ID string `json:"ID"`
+	} `json:"data"`
 }
 
 func buildAuthToken(t time.Time) string {
@@ -155,8 +163,17 @@ func loginWeb(email, password string) (*webUser, error) {
 	params.Set("user[password]", password)
 	params.Set("grant_type", "password")
 
+	body := bytes.NewBufferString(params.Encode())
+	req, err := http.NewRequest(http.MethodPost, baseWebURL+"/en/d/users/sign_in", body)
+
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set(headerAccept, "application/json")
+
 	client := &http.Client{Timeout: timeout}
-	resp, err := client.PostForm(baseWebURL+"/en/d/users/sign_in", params)
+	resp, err := client.Do(req)
 
 	if err != nil {
 		return nil, err
@@ -252,6 +269,42 @@ func getSessions(user *user) ([]sessionID, error) {
 	return sessions, nil
 }
 
+func getExportID(user *user, id sessionID) (exportID, error) {
+	url := fmt.Sprintf("%s/samples/v2/users/%s/samples/%s", baseHubsURL, user.UserID, id)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Set(headerAppKey, appKeyEmber)
+	req.Header.Set(headerAppVersion, appVersionEmber)
+
+	req.AddCookie(&http.Cookie{Name: cookieWebSession, Value: user.SessionCookie})
+
+	client := &http.Client{Timeout: timeout}
+	resp, err := client.Do(req)
+
+	if err != nil {
+		return "", err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", errors.New(resp.Status)
+	}
+
+	var data sample
+	decoder := json.NewDecoder(resp.Body)
+
+	if err = decoder.Decode(&data); err != nil {
+		return "", err
+	}
+
+	return exportID(data.Data.ID), nil
+}
+
 func main() {
 	flag.Parse()
 
@@ -273,6 +326,12 @@ func main() {
 	}
 
 	for _, session := range sessions {
-		fmt.Println(session)
+		exportID, err := getExportID(user, session)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Printf("%s - %s\n", session, exportID)
 	}
 }
