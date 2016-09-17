@@ -10,16 +10,22 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
 )
 
 const (
-	appKey     = "com.runtastic.android"
-	appSecret  = "T68bA6dHk2ayW1Y39BQdEnUmGqM8Zq1SFZ3kNas3KYDjp471dJNXLcoYWsDBd1mH"
-	appSession = "_runtastic_appws_session"
-	baseURL    = "https://appws.runtastic.com"
+	appKey    = "com.runtastic.android"
+	appSecret = "T68bA6dHk2ayW1Y39BQdEnUmGqM8Zq1SFZ3kNas3KYDjp471dJNXLcoYWsDBd1mH"
+
+	baseAppURL = "https://appws.runtastic.com"
+	baseWebURL = "https://www.runtastic.com"
+
+	cookieAppSession = "_runtastic_appws_session"
+	cookieWebSession = "_runtastic_session"
+
 	timeFormat = "2006-01-02 15:04:05"
 	timeout    = 10 * time.Second
 )
@@ -37,11 +43,19 @@ type loginRequest struct {
 	Password   string   `json:"password"`
 }
 
-type authenticatedUser struct {
+type appUser struct {
 	UserID      string `json:"userId"`
 	AccessToken string `json:"accessToken"`
-	Uidt        string `json:"uidt"`
 	SessionID   string
+}
+
+type webUser struct {
+	SessionCookie string
+}
+
+type user struct {
+	appUser
+	webUser
 }
 
 type activities struct {
@@ -73,7 +87,7 @@ func setHeaders(header http.Header) {
 	header.Set("X-Date", t.Format(timeFormat))
 }
 
-func login(email, password string) (*authenticatedUser, error) {
+func loginApp(email, password string) (*appUser, error) {
 	b, err := json.Marshal(loginRequest{
 		Email:      email,
 		Attributes: []string{"accessToken"},
@@ -85,7 +99,7 @@ func login(email, password string) (*authenticatedUser, error) {
 	}
 
 	body := bytes.NewReader(b)
-	req, err := http.NewRequest(http.MethodPost, baseURL+"/webapps/services/auth/login", body)
+	req, err := http.NewRequest(http.MethodPost, baseAppURL+"/webapps/services/auth/login", body)
 
 	if err != nil {
 		return nil, err
@@ -106,7 +120,7 @@ func login(email, password string) (*authenticatedUser, error) {
 		return nil, errors.New(resp.Status)
 	}
 
-	var data authenticatedUser
+	var data appUser
 	decoder := json.NewDecoder(resp.Body)
 
 	if err = decoder.Decode(&data); err != nil {
@@ -114,7 +128,7 @@ func login(email, password string) (*authenticatedUser, error) {
 	}
 
 	for _, cookie := range resp.Cookies() {
-		if cookie.Name == appSession {
+		if cookie.Name == cookieAppSession {
 			data.SessionID = cookie.Value
 		}
 	}
@@ -122,14 +136,59 @@ func login(email, password string) (*authenticatedUser, error) {
 	return &data, nil
 }
 
-func getSessions(user *authenticatedUser) ([]sessionID, error) {
+func loginWeb(email, password string) (*webUser, error) {
+	params := url.Values{}
+
+	params.Set("user[email]", email)
+	params.Set("user[password]", password)
+	params.Set("grant_type", "password")
+
+	client := &http.Client{Timeout: timeout}
+	resp, err := client.PostForm(baseWebURL+"/en/d/users/sign_in", params)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.New(resp.Status)
+	}
+
+	for _, cookie := range resp.Cookies() {
+		if cookie.Name == cookieWebSession {
+			return &webUser{cookie.Value}, nil
+		}
+	}
+
+	return nil, errors.New("Missing session cookie in login response")
+}
+
+func login(email, password string) (*user, error) {
+	app, err := loginApp(email, password)
+
+	if err != nil {
+		return nil, err
+	}
+
+	web, err := loginWeb(email, password)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &user{appUser: *app, webUser: *web}, nil
+}
+
+func getSessions(user *user) ([]sessionID, error) {
 	var sessions []sessionID
 
 	syncedUntil := "0"
 	hasMore := true
 
 	for hasMore {
-		url := baseURL + "/webapps/services/runsessions/v3/sync?access_token=" + user.AccessToken
+		url := baseAppURL + "/webapps/services/runsessions/v3/sync?access_token=" + user.AccessToken
 		body := bytes.NewReader([]byte(fmt.Sprintf("{\"syncedUntil\":\"%s\"}", syncedUntil)))
 		req, err := http.NewRequest(http.MethodPost, url, body)
 
@@ -138,7 +197,7 @@ func getSessions(user *authenticatedUser) ([]sessionID, error) {
 		}
 
 		setHeaders(req.Header)
-		req.AddCookie(&http.Cookie{Name: appSession, Value: user.SessionID})
+		req.AddCookie(&http.Cookie{Name: cookieAppSession, Value: user.SessionID})
 
 		client := &http.Client{Timeout: timeout}
 		resp, err := client.Do(req)
