@@ -43,8 +43,9 @@ const (
 	headerContentType = "Content-Type"
 	headerDate        = "X-Date"
 
-	timeFormat = "2006-01-02 15:04:05"
-	timeout    = 10 * time.Second
+	parallelism = 10
+	timeFormat  = "2006-01-02 15:04:05"
+	timeout     = 10 * time.Second
 )
 
 var (
@@ -95,6 +96,11 @@ type sample struct {
 	} `json:"data"`
 }
 
+type resultOrError struct {
+	data sessionData
+	err  error
+}
+
 func buildAuthToken(t time.Time) string {
 	s := fmt.Sprintf("--%s--%s--%s--", appKeyAndroid, appSecret, t.Format(timeFormat))
 	hash := sha1.Sum([]byte(s))
@@ -111,6 +117,10 @@ func setHeaders(header http.Header) {
 	header.Set(headerAppVersion, appVersionAndroid)
 	header.Set(headerAuthToken, authToken)
 	header.Set(headerDate, t.Format(timeFormat))
+}
+
+func wrap(data sessionData, err error) resultOrError {
+	return resultOrError{data: data, err: err}
 }
 
 func loginApp(ctx context.Context, email, password string) (*appUser, error) {
@@ -339,6 +349,63 @@ func downloadSessionData(ctx context.Context, user *user, id sessionID, format s
 	return ioutil.ReadAll(resp.Body)
 }
 
+func downloadAllSessions(ctx context.Context, user *user, format string) ([]sessionData, error) {
+	newCtx, _ := context.WithTimeout(ctx, timeout)
+	sessions, err := getSessions(newCtx, user)
+
+	if err != nil {
+		return nil, err
+	}
+
+	jobs := make(chan sessionID, len(sessions))
+
+	for _, session := range sessions {
+		jobs <- session
+	}
+
+	var data []sessionData
+	results := make(chan resultOrError)
+
+	newCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	for i := 0; i < parallelism; i++ {
+		go func() {
+			for {
+				localCtx, _ := context.WithTimeout(newCtx, timeout)
+
+				select {
+				case <-newCtx.Done():
+					return
+				case session := <-jobs:
+					select {
+					case <-newCtx.Done():
+						return
+					case results <- wrap(downloadSessionData(localCtx, user, session, format)):
+					}
+				}
+			}
+		}()
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case result := <-results:
+			if result.err != nil {
+				return nil, err
+			}
+
+			data = append(data, result.data)
+
+			if len(data) == len(sessions) {
+				return data, nil
+			}
+		}
+	}
+}
+
 func main() {
 	flag.Parse()
 
@@ -354,20 +421,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	ctx, _ = context.WithTimeout(context.Background(), timeout)
-	sessions, err := getSessions(ctx, user)
+	sessions, err := downloadAllSessions(context.Background(), user, "gpx")
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	for _, id := range sessions {
-		data, err := downloadSessionData(context.TODO(), user, id, "gpx")
-
-		if err != nil {
-			log.Fatal(err)
-		}
-
+	for _, data := range sessions {
 		fmt.Println(string(data))
 	}
 }
