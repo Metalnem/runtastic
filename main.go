@@ -8,6 +8,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -49,10 +50,12 @@ const (
 var (
 	email    = flag.String("email", "", "Email (required)")
 	password = flag.String("password", "", "Password (required)")
+	format   = flag.String("format", "gpx", "Optional export format (gpx, tcx or kml, default is gpx)")
 )
 
 type sessionID string
 type exportID string
+type sessionData []byte
 
 type loginRequest struct {
 	Email      string   `json:"email"`
@@ -308,6 +311,34 @@ func getExportID(ctx context.Context, user *user, id sessionID) (exportID, error
 	return exportID(data.Data.ID), nil
 }
 
+func downloadSessionData(ctx context.Context, user *user, id sessionID, format string) (sessionData, error) {
+	exportID, err := getExportID(ctx, user, id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	url := fmt.Sprintf("%s/en/users/%s/sport-sessions/%s.%s", baseWebURL, user.ID, exportID, format)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	req.AddCookie(&http.Cookie{Name: cookieWebSession, Value: user.SessionCookie})
+
+	client := &http.Client{Timeout: timeout}
+	resp, err := ctxhttp.Do(ctx, client, req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	return ioutil.ReadAll(resp.Body)
+}
+
 func main() {
 	flag.Parse()
 
@@ -330,13 +361,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for _, session := range sessions {
-		exportID, err := getExportID(context.TODO(), user, session)
+	for _, id := range sessions {
+		data, err := downloadSessionData(context.TODO(), user, id, "gpx")
 
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		fmt.Printf("%s - %s\n", session, exportID)
+		fmt.Println(string(data))
 	}
 }
