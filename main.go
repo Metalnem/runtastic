@@ -14,6 +14,9 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"golang.org/x/net/context"
+	"golang.org/x/net/context/ctxhttp"
 )
 
 const (
@@ -107,7 +110,7 @@ func setHeaders(header http.Header) {
 	header.Set(headerDate, t.Format(timeFormat))
 }
 
-func loginApp(email, password string) (*appUser, error) {
+func loginApp(ctx context.Context, email, password string) (*appUser, error) {
 	b, err := json.Marshal(loginRequest{
 		Email:      email,
 		Attributes: []string{"accessToken"},
@@ -127,8 +130,8 @@ func loginApp(email, password string) (*appUser, error) {
 
 	setHeaders(req.Header)
 
-	client := &http.Client{Timeout: timeout}
-	resp, err := client.Do(req)
+	client := new(http.Client)
+	resp, err := ctxhttp.Do(ctx, client, req)
 
 	if err != nil {
 		return nil, err
@@ -156,7 +159,7 @@ func loginApp(email, password string) (*appUser, error) {
 	return &data, nil
 }
 
-func loginWeb(email, password string) (*webUser, error) {
+func loginWeb(ctx context.Context, email, password string) (*webUser, error) {
 	params := url.Values{}
 
 	params.Set("user[email]", email)
@@ -172,8 +175,8 @@ func loginWeb(email, password string) (*webUser, error) {
 
 	req.Header.Set(headerAccept, "application/json")
 
-	client := &http.Client{Timeout: timeout}
-	resp, err := client.Do(req)
+	client := new(http.Client)
+	resp, err := ctxhttp.Do(ctx, client, req)
 
 	if err != nil {
 		return nil, err
@@ -194,14 +197,14 @@ func loginWeb(email, password string) (*webUser, error) {
 	return nil, errors.New("Missing session cookie in login response")
 }
 
-func login(email, password string) (*user, error) {
-	app, err := loginApp(email, password)
+func login(ctx context.Context, email, password string) (*user, error) {
+	app, err := loginApp(ctx, email, password)
 
 	if err != nil {
 		return nil, err
 	}
 
-	web, err := loginWeb(email, password)
+	web, err := loginWeb(ctx, email, password)
 
 	if err != nil {
 		return nil, err
@@ -210,7 +213,7 @@ func login(email, password string) (*user, error) {
 	return &user{appUser: *app, webUser: *web}, nil
 }
 
-func getSessions(user *user) ([]sessionID, error) {
+func getSessions(ctx context.Context, user *user) ([]sessionID, error) {
 	var sessions []sessionID
 
 	syncedUntil := "0"
@@ -228,8 +231,8 @@ func getSessions(user *user) ([]sessionID, error) {
 		setHeaders(req.Header)
 		req.AddCookie(&http.Cookie{Name: cookieAppSession, Value: user.SessionID})
 
-		client := &http.Client{Timeout: timeout}
-		resp, err := client.Do(req)
+		client := new(http.Client)
+		resp, err := ctxhttp.Do(ctx, client, req)
 
 		if err != nil {
 			return nil, err
@@ -269,7 +272,7 @@ func getSessions(user *user) ([]sessionID, error) {
 	return sessions, nil
 }
 
-func getExportID(user *user, id sessionID) (exportID, error) {
+func getExportID(ctx context.Context, user *user, id sessionID) (exportID, error) {
 	url := fmt.Sprintf("%s/samples/v2/users/%s/samples/%s", baseHubsURL, user.ID, id)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 
@@ -283,7 +286,7 @@ func getExportID(user *user, id sessionID) (exportID, error) {
 	req.AddCookie(&http.Cookie{Name: cookieWebSession, Value: user.SessionCookie})
 
 	client := &http.Client{Timeout: timeout}
-	resp, err := client.Do(req)
+	resp, err := ctxhttp.Do(ctx, client, req)
 
 	if err != nil {
 		return "", err
@@ -313,20 +316,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	user, err := login(*email, *password)
+	ctx, _ := context.WithTimeout(context.Background(), timeout)
+	user, err := login(ctx, *email, *password)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	sessions, err := getSessions(user)
+	ctx, _ = context.WithTimeout(context.Background(), timeout)
+	sessions, err := getSessions(ctx, user)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	for _, session := range sessions {
-		exportID, err := getExportID(user, session)
+		exportID, err := getExportID(context.TODO(), user, session)
 
 		if err != nil {
 			log.Fatal(err)
