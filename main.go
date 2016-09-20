@@ -51,6 +51,9 @@ var (
 	email    = flag.String("email", "", "Email (required)")
 	password = flag.String("password", "", "Password (required)")
 	format   = flag.String("format", "gpx", "Optional export format (gpx, tcx or kml, default is gpx)")
+
+	errAuthenticationFailed = errors.New("Invalid email address or password")
+	errInvalidFormat        = errors.New("Invalid export format")
 )
 
 type sessionID string
@@ -156,6 +159,11 @@ func loginApp(ctx context.Context, email, password string) (*appUser, error) {
 
 	defer resp.Body.Close()
 
+	// For some silly reason, Runtastic API returns 402 instead of 401
+	if resp.StatusCode == http.StatusPaymentRequired {
+		return nil, errAuthenticationFailed
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, errors.New(resp.Status)
 	}
@@ -201,6 +209,10 @@ func loginWeb(ctx context.Context, email, password string) (*webUser, error) {
 
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, errAuthenticationFailed
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, errors.New(resp.Status)
 	}
@@ -211,7 +223,7 @@ func loginWeb(ctx context.Context, email, password string) (*webUser, error) {
 		}
 	}
 
-	return nil, errors.New("Missing session cookie in login response")
+	return nil, errAuthenticationFailed
 }
 
 func login(ctx context.Context, email, password string) (*user, error) {
