@@ -45,7 +45,6 @@ const (
 
 	parallelism = 10
 	timeFormat  = "2006-01-02 15:04:05"
-	timeout     = 10 * time.Second
 )
 
 var (
@@ -96,9 +95,18 @@ type sample struct {
 	} `json:"data"`
 }
 
-type resultOrError struct {
+type result struct {
 	data sessionData
 	err  error
+}
+
+func wrap(data sessionData, err error) result {
+	return result{data: data, err: err}
+}
+
+func withTimeout(ctx context.Context) context.Context {
+	ctx, _ = context.WithTimeout(ctx, 10*time.Second)
+	return ctx
 }
 
 func buildAuthToken(t time.Time) string {
@@ -117,10 +125,6 @@ func setHeaders(header http.Header) {
 	header.Set(headerAppVersion, appVersionAndroid)
 	header.Set(headerAuthToken, authToken)
 	header.Set(headerDate, t.Format(timeFormat))
-}
-
-func wrap(data sessionData, err error) resultOrError {
-	return resultOrError{data: data, err: err}
 }
 
 func loginApp(ctx context.Context, email, password string) (*appUser, error) {
@@ -298,7 +302,7 @@ func getExportID(ctx context.Context, user *user, id sessionID) (exportID, error
 
 	req.AddCookie(&http.Cookie{Name: cookieWebSession, Value: user.SessionCookie})
 
-	client := &http.Client{Timeout: timeout}
+	client := new(http.Client)
 	resp, err := ctxhttp.Do(ctx, client, req)
 
 	if err != nil {
@@ -337,7 +341,7 @@ func downloadSessionData(ctx context.Context, user *user, id sessionID, format s
 
 	req.AddCookie(&http.Cookie{Name: cookieWebSession, Value: user.SessionCookie})
 
-	client := &http.Client{Timeout: timeout}
+	client := new(http.Client)
 	resp, err := ctxhttp.Do(ctx, client, req)
 
 	if err != nil {
@@ -350,39 +354,32 @@ func downloadSessionData(ctx context.Context, user *user, id sessionID, format s
 }
 
 func downloadAllSessions(ctx context.Context, user *user, format string) ([]sessionData, error) {
-	newCtx, _ := context.WithTimeout(ctx, timeout)
-	sessions, err := getSessions(newCtx, user)
+	sessions, err := getSessions(withTimeout(ctx), user)
 
 	if err != nil {
 		return nil, err
 	}
 
 	jobs := make(chan sessionID, len(sessions))
+	defer close(jobs)
 
 	for _, session := range sessions {
 		jobs <- session
 	}
 
 	var data []sessionData
-	results := make(chan resultOrError)
+	results := make(chan result)
 
 	newCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	for i := 0; i < parallelism; i++ {
 		go func() {
-			for {
-				localCtx, _ := context.WithTimeout(newCtx, timeout)
-
+			for job := range jobs {
 				select {
+				case results <- wrap(downloadSessionData(withTimeout(newCtx), user, job, format)):
 				case <-newCtx.Done():
 					return
-				case session := <-jobs:
-					select {
-					case <-newCtx.Done():
-						return
-					case results <- wrap(downloadSessionData(localCtx, user, session, format)):
-					}
 				}
 			}
 		}()
@@ -390,8 +387,6 @@ func downloadAllSessions(ctx context.Context, user *user, format string) ([]sess
 
 	for {
 		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
 		case result := <-results:
 			if result.err != nil {
 				return nil, err
@@ -402,6 +397,8 @@ func downloadAllSessions(ctx context.Context, user *user, format string) ([]sess
 			if len(data) == len(sessions) {
 				return data, nil
 			}
+		case <-ctx.Done():
+			return nil, ctx.Err()
 		}
 	}
 }
@@ -414,7 +411,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), timeout)
+	ctx := withTimeout(context.Background())
 	user, err := login(ctx, *email, *password)
 
 	if err != nil {
