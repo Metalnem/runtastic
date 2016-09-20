@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/net/context"
@@ -110,6 +111,16 @@ func wrap(data sessionData, err error) result {
 func withTimeout(ctx context.Context) context.Context {
 	ctx, _ = context.WithTimeout(ctx, 10*time.Second)
 	return ctx
+}
+
+func getFormat(format string) (string, error) {
+	format = strings.ToLower(format)
+
+	if format != "gpx" && format != "tcx" && format != "kml" {
+		return "", errInvalidFormat
+	}
+
+	return format, nil
 }
 
 func buildAuthToken(t time.Time) string {
@@ -423,6 +434,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	format, err := getFormat(*format)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	ctx := withTimeout(context.Background())
 	user, err := login(ctx, *email, *password)
 
@@ -430,7 +447,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	sessions, err := downloadAllSessions(context.Background(), user, "gpx")
+	sessions, err := downloadAllSessions(context.Background(), user, format)
 
 	if err != nil {
 		log.Fatal(err)
