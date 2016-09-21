@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
@@ -37,12 +38,13 @@ const (
 	cookieAppSession = "_runtastic_appws_session"
 	cookieWebSession = "_runtastic_session"
 
-	headerAccept      = "Accept"
-	headerAppKey      = "X-App-Key"
-	headerAppVersion  = "X-App-Version"
-	headerAuthToken   = "X-Auth-Token"
-	headerContentType = "Content-Type"
-	headerDate        = "X-Date"
+	headerAccept             = "Accept"
+	headerAppKey             = "X-App-Key"
+	headerAppVersion         = "X-App-Version"
+	headerAuthToken          = "X-Auth-Token"
+	headerContentDisposition = "Content-Disposition"
+	headerContentType        = "Content-Type"
+	headerDate               = "X-Date"
 
 	parallelism = 10
 	timeFormat  = "2006-01-02 15:04:05"
@@ -55,11 +57,11 @@ var (
 
 	errAuthenticationFailed = errors.New("Invalid email address or password")
 	errInvalidFormat        = errors.New("Invalid export format")
+	errMissingFilename      = errors.New("Could not retrieve activity name from the server")
 )
 
 type sessionID string
 type exportID string
-type sessionData []byte
 
 type loginRequest struct {
 	Email      string   `json:"email"`
@@ -99,13 +101,18 @@ type sample struct {
 	} `json:"data"`
 }
 
+type sessionData struct {
+	Filename string
+	Data     []byte
+}
+
 type result struct {
 	data sessionData
 	err  error
 }
 
-func wrap(data sessionData, err error) result {
-	return result{data: data, err: err}
+func wrap(data *sessionData, err error) result {
+	return result{data: *data, err: err}
 }
 
 func withTimeout(ctx context.Context) context.Context {
@@ -348,7 +355,7 @@ func getExportID(ctx context.Context, user *user, id sessionID) (exportID, error
 	return exportID(data.Data.ID), nil
 }
 
-func downloadSessionData(ctx context.Context, user *user, id sessionID, format string) (sessionData, error) {
+func downloadSessionData(ctx context.Context, user *user, id sessionID, format string) (*sessionData, error) {
 	exportID, err := getExportID(ctx, user, id)
 
 	if err != nil {
@@ -373,7 +380,26 @@ func downloadSessionData(ctx context.Context, user *user, id sessionID, format s
 
 	defer resp.Body.Close()
 
-	return ioutil.ReadAll(resp.Body)
+	h := resp.Header.Get(headerContentDisposition)
+	_, params, err := mime.ParseMediaType(h)
+
+	if err != nil {
+		return nil, err
+	}
+
+	filename := params["filename"]
+
+	if filename == "" {
+		return nil, errMissingFilename
+	}
+
+	data, err := ioutil.ReadAll(resp.Body)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &sessionData{Filename: filename, Data: data}, nil
 }
 
 func downloadAllSessions(ctx context.Context, user *user, format string) ([]sessionData, error) {
@@ -453,7 +479,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for _, data := range sessions {
-		fmt.Println(string(data))
+	for _, session := range sessions {
+		fmt.Println(string(session.Filename))
 	}
 }
