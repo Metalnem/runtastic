@@ -1,6 +1,7 @@
 package main
 
 import (
+	"archive/zip"
 	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
@@ -8,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"mime"
@@ -118,6 +120,12 @@ func wrap(data *sessionData, err error) result {
 func withTimeout(ctx context.Context) context.Context {
 	ctx, _ = context.WithTimeout(ctx, 10*time.Second)
 	return ctx
+}
+
+func checkedClose(c io.Closer, err *error) {
+	if cerr := c.Close(); cerr != nil && *err == nil {
+		*err = cerr
+	}
 }
 
 func getFormat(format string) (string, error) {
@@ -452,6 +460,34 @@ func downloadAllSessions(ctx context.Context, user *user, format string) ([]sess
 	}
 }
 
+func archive(filename string, sessions []sessionData) (err error) {
+	file, err := os.Create(filename)
+
+	if err != nil {
+		return err
+	}
+
+	defer checkedClose(file, &err)
+	zw := zip.NewWriter(file)
+	defer checkedClose(zw, &err)
+
+	for _, session := range sessions {
+		w, err := zw.Create(session.Filename)
+
+		if err != nil {
+			return err
+		}
+
+		_, err = w.Write(session.Data)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func main() {
 	flag.Parse()
 
@@ -479,7 +515,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for _, session := range sessions {
-		fmt.Println(string(session.Filename))
+	if err = archive("Runtastic.zip", sessions); err != nil {
+		log.Fatal(err)
 	}
 }
