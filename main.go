@@ -60,6 +60,7 @@ var (
 	errAuthenticationFailed = errors.New("Invalid email address or password")
 	errInvalidFormat        = errors.New("Invalid export format")
 	errMissingFilename      = errors.New("Could not retrieve activity name from the server")
+	errNoSessions           = errors.New("There were no activities to backup")
 )
 
 type sessionID string
@@ -513,6 +514,10 @@ func main() {
 
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if len(sessions) == 0 {
+		log.Fatal(errNoSessions)
 	}
 
 	if err = archive("Runtastic.zip", sessions); err != nil {
