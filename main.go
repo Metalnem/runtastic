@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
@@ -20,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/context"
 	"golang.org/x/net/context/ctxhttp"
 )
 
@@ -51,6 +51,7 @@ const (
 	parallelism  = 10
 	outputFormat = "2006-01-02 15.04.05"
 	timeFormat   = "2006-01-02 15:04:05"
+	timeout      = 10 * time.Second
 )
 
 var (
@@ -117,11 +118,6 @@ type result struct {
 
 func wrap(data *sessionData, err error) result {
 	return result{data: *data, err: err}
-}
-
-func withTimeout(ctx context.Context) context.Context {
-	ctx, _ = context.WithTimeout(ctx, 10*time.Second)
-	return ctx
 }
 
 func checkedClose(c io.Closer, err *error) {
@@ -413,7 +409,10 @@ func downloadSessionData(ctx context.Context, user *user, id sessionID, format s
 }
 
 func downloadAllSessions(ctx context.Context, user *user, format string) ([]sessionData, error) {
-	sessions, err := getSessions(withTimeout(ctx), user)
+	newCtx, cancel := context.WithTimeout(ctx, timeout)
+	sessions, err := getSessions(newCtx, user)
+
+	cancel()
 
 	if err != nil {
 		return nil, err
@@ -429,14 +428,19 @@ func downloadAllSessions(ctx context.Context, user *user, format string) ([]sess
 	var data []sessionData
 	results := make(chan result)
 
-	newCtx, cancel := context.WithCancel(ctx)
+	newCtx, cancel = context.WithCancel(ctx)
 	defer cancel()
 
 	for i := 0; i < parallelism; i++ {
 		go func() {
 			for job := range jobs {
+				localCtx, cancel := context.WithTimeout(newCtx, timeout)
+				result := wrap(downloadSessionData(localCtx, user, job, format))
+
+				cancel()
+
 				select {
-				case results <- wrap(downloadSessionData(withTimeout(newCtx), user, job, format)):
+				case results <- result:
 				case <-newCtx.Done():
 					return
 				}
@@ -502,8 +506,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	ctx := withTimeout(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	user, err := login(ctx, *email, *password)
+
+	cancel()
 
 	if err != nil {
 		log.Fatal(err)
