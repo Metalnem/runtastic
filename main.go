@@ -20,8 +20,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"golang.org/x/net/context/ctxhttp"
 )
 
 const (
@@ -175,7 +173,7 @@ func loginApp(ctx context.Context, email, password string) (*appUser, error) {
 	setHeaders(req.Header)
 
 	client := new(http.Client)
-	resp, err := ctxhttp.Do(ctx, client, req)
+	resp, err := client.Do(req.WithContext(ctx))
 
 	if err != nil {
 		return nil, err
@@ -225,7 +223,7 @@ func loginWeb(ctx context.Context, email, password string) (*webUser, error) {
 	req.Header.Set(headerAccept, "application/json")
 
 	client := new(http.Client)
-	resp, err := ctxhttp.Do(ctx, client, req)
+	resp, err := client.Do(req.WithContext(ctx))
 
 	if err != nil {
 		return nil, err
@@ -285,7 +283,7 @@ func getSessions(ctx context.Context, user *user) ([]sessionID, error) {
 		req.AddCookie(&http.Cookie{Name: cookieAppSession, Value: user.SessionID})
 
 		client := new(http.Client)
-		resp, err := ctxhttp.Do(ctx, client, req)
+		resp, err := client.Do(req.WithContext(ctx))
 
 		if err != nil {
 			return nil, err
@@ -339,7 +337,7 @@ func getExportID(ctx context.Context, user *user, id sessionID) (exportID, error
 	req.AddCookie(&http.Cookie{Name: cookieWebSession, Value: user.SessionCookie})
 
 	client := new(http.Client)
-	resp, err := ctxhttp.Do(ctx, client, req)
+	resp, err := client.Do(req.WithContext(ctx))
 
 	if err != nil {
 		return "", err
@@ -378,7 +376,7 @@ func downloadSessionData(ctx context.Context, user *user, id sessionID, format s
 	req.AddCookie(&http.Cookie{Name: cookieWebSession, Value: user.SessionCookie})
 
 	client := new(http.Client)
-	resp, err := ctxhttp.Do(ctx, client, req)
+	resp, err := client.Do(req.WithContext(ctx))
 
 	if err != nil {
 		return nil, err
