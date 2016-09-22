@@ -479,9 +479,7 @@ func archive(filename string, sessions []sessionData) (err error) {
 			return err
 		}
 
-		_, err = w.Write(session.Data)
-
-		if err != nil {
+		if _, err = w.Write(session.Data); err != nil {
 			return err
 		}
 	}
