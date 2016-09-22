@@ -48,8 +48,9 @@ const (
 	headerContentType        = "Content-Type"
 	headerDate               = "X-Date"
 
-	parallelism = 10
-	timeFormat  = "2006-01-02 15:04:05"
+	parallelism  = 10
+	outputFormat = "2006-01-02 15.04.05"
+	timeFormat   = "2006-01-02 15:04:05"
 )
 
 var (
@@ -518,7 +519,9 @@ func main() {
 		log.Fatal(errNoSessions)
 	}
 
-	if err = archive("Runtastic.zip", sessions); err != nil {
+	filename := fmt.Sprintf("Runtastic %s.zip", time.Now().Format(outputFormat))
+
+	if err = archive(filename, sessions); err != nil {
 		log.Fatal(err)
 	}
 }
