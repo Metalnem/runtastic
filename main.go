@@ -152,6 +152,23 @@ func setHeaders(header http.Header) {
 	header.Set(headerDate, t.Format(timeFormat))
 }
 
+func getCredentials() (string, string) {
+	email := *email
+	password := *password
+
+	if email == "" && password == "" {
+		email = os.Getenv("RUNTASTIC_EMAIL")
+		password = os.Getenv("RUNTASTIC_PASSWORD")
+	}
+
+	if email == "" || password == "" {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	return email, password
+}
+
 func loginApp(ctx context.Context, email, password string) (*appUser, error) {
 	b, err := json.Marshal(loginRequest{
 		Email:      email,
@@ -493,11 +510,7 @@ func archive(filename string, sessions []sessionData) (err error) {
 func main() {
 	flag.Parse()
 
-	if *email == "" || *password == "" {
-		flag.Usage()
-		os.Exit(1)
-	}
-
+	email, password := getCredentials()
 	format, err := getFormat(*format)
 
 	if err != nil {
@@ -505,7 +518,7 @@ func main() {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	user, err := login(ctx, *email, *password)
+	user, err := login(ctx, email, password)
 
 	cancel()
 
