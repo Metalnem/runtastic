@@ -55,7 +55,7 @@ const (
 var (
 	email    = flag.String("email", "", "Email (required)")
 	password = flag.String("password", "", "Password (required)")
-	format   = flag.String("format", "gpx", "Optional export format (gpx, tcx or kml, default is gpx)")
+	format   = flag.String("format", "gpx", "Optional export format (gpx, tcx or kml)")
 
 	errAuthenticationFailed = errors.New("Invalid email address or password")
 	errInvalidFormat        = errors.New("Invalid export format")

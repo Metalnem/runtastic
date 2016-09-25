@@ -15,7 +15,7 @@ Usage of ./runtastic-cli:
   -email string
     	Email (required)
   -format string
-    	Optional export format (gpx, tcx or kml, default is gpx) (default "gpx")
+    	Optional export format (gpx, tcx or kml) (default "gpx")
   -password string
     	Password (required)
 ```
