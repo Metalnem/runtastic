@@ -7,6 +7,10 @@ Command line tool to archive all your Runtastic activities.
 $ go get github.com/metalnem/runtastic-cli
 ```
 
+## Binaries (x64)
+
+[Mac OS X](https://github.com/Metalnem/runtastic-cli/releases/download/v1.0.0/runtastic-cli-darwin64-1.0.0.zip)
+
 ## Usage
 
 ```
