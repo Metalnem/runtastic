@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/sha1"
@@ -19,7 +20,10 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
+
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
@@ -152,21 +156,40 @@ func setHeaders(header http.Header) {
 	header.Set(headerDate, t.Format(timeFormat))
 }
 
-func getCredentials() (string, string) {
+func getCredentials() (string, string, error) {
 	email := *email
 	password := *password
 
-	if email == "" && password == "" {
-		email = os.Getenv("RUNTASTIC_EMAIL")
-		password = os.Getenv("RUNTASTIC_PASSWORD")
+	if email != "" && password != "" {
+		return email, password, nil
 	}
 
-	if email == "" || password == "" {
-		flag.Usage()
-		os.Exit(1)
+	email = os.Getenv("RUNTASTIC_EMAIL")
+	password = os.Getenv("RUNTASTIC_PASSWORD")
+
+	if email != "" && password != "" {
+		return email, password, nil
 	}
 
-	return email, password
+	fmt.Print("Email: ")
+	email, err := bufio.NewReader(os.Stdin).ReadString('\n')
+
+	if err != nil {
+		return "", "", err
+	}
+
+	fmt.Print("Password: ")
+	pass, err := terminal.ReadPassword(syscall.Stdin)
+	fmt.Println()
+
+	if err != nil {
+		return "", "", err
+	}
+
+	email = email[0 : len(email)-1]
+	password = string(pass)
+
+	return email, password, nil
 }
 
 func loginApp(ctx context.Context, email, password string) (*appUser, error) {
@@ -510,7 +533,12 @@ func archive(filename string, sessions []sessionData) (err error) {
 func main() {
 	flag.Parse()
 
-	email, password := getCredentials()
+	email, password, err := getCredentials()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	format, err := getFormat(*format)
 
 	if err != nil {
