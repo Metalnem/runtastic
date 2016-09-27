@@ -62,6 +62,12 @@ var (
 	errMissingCredentials   = errors.New("Missing email address or password")
 	errMissingFilename      = errors.New("Could not retrieve activity name from the server")
 	errNoSessions           = errors.New("There were no activities to backup")
+
+	// Info is used for logging information.
+	Info = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime)
+
+	// Error is used for logging errors.
+	Error = log.New(os.Stderr, "ERROR: ", log.Ldate|log.Ltime)
 )
 
 type sessionID string
@@ -522,7 +528,7 @@ func main() {
 	format, err := getFormat(*format)
 
 	if err != nil {
-		log.Fatal(err)
+		Error.Fatal(err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -531,22 +537,24 @@ func main() {
 	cancel()
 
 	if err != nil {
-		log.Fatal(err)
+		Error.Fatal(err)
 	}
 
 	sessions, err := downloadAllSessions(context.Background(), user, format)
 
 	if err != nil {
-		log.Fatal(err)
+		Error.Fatal(err)
 	}
 
 	if len(sessions) == 0 {
-		log.Fatal(errNoSessions)
+		Error.Fatal(err)
 	}
 
 	filename := fmt.Sprintf("Runtastic %s.zip", time.Now().Format(outputFormat))
 
 	if err = archive(filename, sessions); err != nil {
-		log.Fatal(err)
+		Error.Fatal(err)
 	}
+
+	Info.Println("Activities successfully downloaded")
 }
