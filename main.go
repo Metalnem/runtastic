@@ -2,7 +2,6 @@ package main
 
 import (
 	"archive/zip"
-	"bufio"
 	"bytes"
 	"context"
 	"crypto/sha1"
@@ -20,10 +19,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
-
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
@@ -63,6 +59,7 @@ var (
 
 	errAuthenticationFailed = errors.New("Invalid email address or password")
 	errInvalidFormat        = errors.New("Invalid export format")
+	errMissingCredentials   = errors.New("Missing email address or password")
 	errMissingFilename      = errors.New("Could not retrieve activity name from the server")
 	errNoSessions           = errors.New("There were no activities to backup")
 )
@@ -171,25 +168,7 @@ func getCredentials() (string, string, error) {
 		return email, password, nil
 	}
 
-	fmt.Print("Email: ")
-	email, err := bufio.NewReader(os.Stdin).ReadString('\n')
-
-	if err != nil {
-		return "", "", err
-	}
-
-	fmt.Print("Password: ")
-	pass, err := terminal.ReadPassword(syscall.Stdin)
-	fmt.Println()
-
-	if err != nil {
-		return "", "", err
-	}
-
-	email = email[0 : len(email)-1]
-	password = string(pass)
-
-	return email, password, nil
+	return "", "", errMissingCredentials
 }
 
 func loginApp(ctx context.Context, email, password string) (*appUser, error) {
