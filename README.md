@@ -3,7 +3,7 @@ Command line tool to archive all your Runtastic activities.
 
 ## Download
 
-[Windows](https://github.com/Metalnem/runtastic-cli/releases/download/v1.1.0/runtastic-cli-win64-1.1.0.zip)
+[Windows](https://github.com/Metalnem/runtastic-cli/releases/download/v1.1.0/runtastic-cli-win64-1.1.0.zip)  
 [Mac OS X](https://github.com/Metalnem/runtastic-cli/releases/download/v1.1.0/runtastic-cli-darwin64-1.1.0.zip)
 
 ## Usage
