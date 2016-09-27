@@ -515,7 +515,8 @@ func main() {
 	email, password, err := getCredentials()
 
 	if err != nil {
-		log.Fatal(err)
+		flag.Usage()
+		os.Exit(1)
 	}
 
 	format, err := getFormat(*format)
