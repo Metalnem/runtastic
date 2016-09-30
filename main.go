@@ -117,12 +117,12 @@ type sessionData struct {
 }
 
 type result struct {
-	data sessionData
+	data *sessionData
 	err  error
 }
 
 func wrap(data *sessionData, err error) result {
-	return result{data: *data, err: err}
+	return result{data: data, err: err}
 }
 
 func checkedClose(c io.Closer, err *error) {
@@ -431,7 +431,7 @@ func downloadSessionData(ctx context.Context, user *user, id sessionID, format s
 	return &sessionData{Filename: filename, Data: data}, nil
 }
 
-func downloadAllSessions(ctx context.Context, user *user, format string) ([]sessionData, error) {
+func downloadAllSessions(ctx context.Context, user *user, format string) ([]*sessionData, error) {
 	newCtx, cancel := context.WithTimeout(ctx, timeout)
 	sessions, err := getSessions(newCtx, user)
 
@@ -448,7 +448,7 @@ func downloadAllSessions(ctx context.Context, user *user, format string) ([]sess
 		jobs <- session
 	}
 
-	var data []sessionData
+	var data []*sessionData
 	results := make(chan result)
 
 	newCtx, cancel = context.WithCancel(ctx)
@@ -475,7 +475,7 @@ func downloadAllSessions(ctx context.Context, user *user, format string) ([]sess
 		select {
 		case result := <-results:
 			if result.err != nil {
-				return nil, err
+				return nil, result.err
 			}
 
 			data = append(data, result.data)
@@ -489,7 +489,7 @@ func downloadAllSessions(ctx context.Context, user *user, format string) ([]sess
 	}
 }
 
-func archive(filename string, sessions []sessionData) (err error) {
+func archive(filename string, sessions []*sessionData) (err error) {
 	file, err := os.Create(filename)
 
 	if err != nil {
