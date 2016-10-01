@@ -51,7 +51,7 @@ const (
 	timeFormat   = "2006-01-02 15:04:05"
 
 	httpTimeout  = 5 * time.Second
-	retryTimeout = 1 * time.Second
+	retryTimeout = 2 * time.Second
 	totalTimeout = 15 * time.Second
 )
 
@@ -172,6 +172,9 @@ func getCredentials() (string, string, error) {
 }
 
 func loginApp(ctx context.Context, email, password string) (*appUser, error) {
+	ctx, cancel := context.WithTimeout(ctx, httpTimeout)
+	defer cancel()
+
 	b, err := json.Marshal(loginRequest{
 		Email:      email,
 		Attributes: []string{"accessToken"},
@@ -226,8 +229,10 @@ func loginApp(ctx context.Context, email, password string) (*appUser, error) {
 }
 
 func loginWeb(ctx context.Context, email, password string) (*webUser, error) {
-	params := url.Values{}
+	ctx, cancel := context.WithTimeout(ctx, httpTimeout)
+	defer cancel()
 
+	params := url.Values{}
 	params.Set("user[email]", email)
 	params.Set("user[password]", password)
 	params.Set("grant_type", "password")
@@ -294,51 +299,62 @@ func getSessions(ctx context.Context, user *user) ([]sessionID, error) {
 	hasMore := true
 
 	for hasMore {
-		url := baseAppURL + "/webapps/services/runsessions/v3/sync?access_token=" + user.AccessToken
-		body := bytes.NewReader([]byte(fmt.Sprintf("{\"syncedUntil\":\"%s\"}", syncedUntil)))
-		req, err := http.NewRequest(http.MethodPost, url, body)
+		err := func() error {
+			newCtx, cancel := context.WithTimeout(ctx, httpTimeout)
+			defer cancel()
 
-		if err != nil {
-			return nil, err
-		}
+			url := baseAppURL + "/webapps/services/runsessions/v3/sync?access_token=" + user.AccessToken
+			body := bytes.NewReader([]byte(fmt.Sprintf("{\"syncedUntil\":\"%s\"}", syncedUntil)))
+			req, err := http.NewRequest(http.MethodPost, url, body)
 
-		setHeaders(req.Header)
-		req.AddCookie(&http.Cookie{Name: cookieAppSession, Value: user.SessionID})
+			if err != nil {
+				return err
+			}
 
-		client := new(http.Client)
-		resp, err := client.Do(req.WithContext(ctx))
+			setHeaders(req.Header)
+			req.AddCookie(&http.Cookie{Name: cookieAppSession, Value: user.SessionID})
 
-		if err != nil {
-			return nil, errors.WithMessage(err, "Failed to download list of activities")
-		}
+			client := new(http.Client)
+			resp, err := client.Do(req.WithContext(newCtx))
 
-		defer resp.Body.Close()
+			if err != nil {
+				return errors.WithMessage(err, "Failed to download list of activities")
+			}
 
-		if resp.StatusCode != http.StatusOK {
-			return nil, errors.WithMessage(errors.New(resp.Status), "Failed to download list of activities")
-		}
+			defer resp.Body.Close()
 
-		var data activities
-		decoder := json.NewDecoder(resp.Body)
+			if resp.StatusCode != http.StatusOK {
+				return errors.WithMessage(errors.New(resp.Status), "Failed to download list of activities")
+			}
 
-		if err = decoder.Decode(&data); err != nil {
-			return nil, errors.WithMessage(err, "Invalid activity list response from server")
-		}
+			var data activities
+			decoder := json.NewDecoder(resp.Body)
 
-		for _, session := range data.Sessions {
-			if session.DeletedAt == "" {
-				l := len(sessions)
-				id := sessionID(session.ID)
+			if err = decoder.Decode(&data); err != nil {
+				return errors.WithMessage(err, "Invalid activity list response from server")
+			}
 
-				if l == 0 || sessions[l-1] != id {
-					sessions = append(sessions, id)
+			for _, session := range data.Sessions {
+				if session.DeletedAt == "" {
+					l := len(sessions)
+					id := sessionID(session.ID)
+
+					if l == 0 || sessions[l-1] != id {
+						sessions = append(sessions, id)
+					}
 				}
 			}
-		}
 
-		syncedUntil = data.SyncedUntil
+			syncedUntil = data.SyncedUntil
 
-		if hasMore, err = strconv.ParseBool(data.HasMore); err != nil {
+			if hasMore, err = strconv.ParseBool(data.HasMore); err != nil {
+				return err
+			}
+
+			return nil
+		}()
+
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -349,6 +365,9 @@ func getSessions(ctx context.Context, user *user) ([]sessionID, error) {
 }
 
 func getExportID(ctx context.Context, user *user, id sessionID) (exportID, error) {
+	ctx, cancel := context.WithTimeout(ctx, httpTimeout)
+	defer cancel()
+
 	url := fmt.Sprintf("%s/samples/v2/users/%s/samples/%s", baseHubsURL, user.ID, id)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 
@@ -384,14 +403,9 @@ func getExportID(ctx context.Context, user *user, id sessionID) (exportID, error
 	return exportID(data.Data.ID), nil
 }
 
-func downloadSessionData(ctx context.Context, user *user, id sessionID, format string) (*sessionData, error) {
-	exportID, err := getExportID(ctx, user, id)
-
-	if err != nil {
-		return nil, err
-	}
-
-	Info.Printf("Export ID for session %s is %s\n", id, exportID)
+func downloadSessionData(ctx context.Context, user *user, id sessionID, exportID exportID, format string) (*sessionData, error) {
+	ctx, cancel := context.WithTimeout(ctx, httpTimeout)
+	defer cancel()
 
 	url := fmt.Sprintf("%s/en/users/%s/sport-sessions/%s.%s", baseWebURL, user.ID, exportID, format)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -435,11 +449,37 @@ func downloadSessionData(ctx context.Context, user *user, id sessionID, format s
 	return &sessionData{Filename: filename, Data: data}, nil
 }
 
-func downloadAllSessions(ctx context.Context, user *user, format string) ([]*sessionData, error) {
-	newCtx, cancel := context.WithTimeout(ctx, httpTimeout)
-	sessions, err := getSessions(newCtx, user)
+func downloadSessionDataWithRetry(ctx context.Context, user *user, id sessionID, format string) (*sessionData, error) {
+	exportID, err := getExportID(ctx, user, id)
 
-	cancel()
+	if err != nil {
+		return nil, err
+	}
+
+	Info.Printf("Export ID for session %s is %s\n", id, exportID)
+
+	deadline, cancel := context.WithTimeout(ctx, totalTimeout)
+	defer cancel()
+
+	Info.Printf("Downloading session %s\n", id)
+
+	for {
+		sessionData, err := downloadSessionData(deadline, user, id, exportID, format)
+
+		if err == nil {
+			return sessionData, nil
+		}
+
+		select {
+		case <-deadline.Done():
+			return nil, deadline.Err()
+		case <-time.After(retryTimeout):
+		}
+	}
+}
+
+func downloadAllSessions(ctx context.Context, user *user, format string) ([]*sessionData, error) {
+	sessions, err := getSessions(ctx, user)
 
 	if err != nil {
 		return nil, err
@@ -448,18 +488,13 @@ func downloadAllSessions(ctx context.Context, user *user, format string) ([]*ses
 	var data []*sessionData
 
 	for _, session := range sessions {
-		for {
-			newCtx, cancel := context.WithTimeout(ctx, httpTimeout)
-			sessionData, err := downloadSessionData(newCtx, user, session, format)
+		sessionData, err := downloadSessionDataWithRetry(ctx, user, session, format)
 
-			cancel()
-
-			if err != nil {
-				return nil, err
-			}
-
-			data = append(data, sessionData)
+		if err != nil {
+			return nil, err
 		}
+
+		data = append(data, sessionData)
 	}
 
 	return data, nil
@@ -507,10 +542,7 @@ func main() {
 		Error.Fatal(err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), httpTimeout)
-	user, err := login(ctx, email, password)
-
-	cancel()
+	user, err := login(context.Background(), email, password)
 
 	if err != nil {
 		Error.Fatal(err)
