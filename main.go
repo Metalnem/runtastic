@@ -49,7 +49,10 @@ const (
 
 	outputFormat = "2006-01-02 15.04.05"
 	timeFormat   = "2006-01-02 15:04:05"
-	timeout      = 5 * time.Second
+
+	httpTimeout  = 5 * time.Second
+	retryTimeout = 1 * time.Second
+	totalTimeout = 15 * time.Second
 )
 
 var (
@@ -114,15 +117,6 @@ type sample struct {
 type sessionData struct {
 	Filename string
 	Data     []byte
-}
-
-type result struct {
-	data *sessionData
-	err  error
-}
-
-func wrap(data *sessionData, err error) result {
-	return result{data: data, err: err}
 }
 
 func checkedClose(c io.Closer, err *error) {
@@ -349,6 +343,8 @@ func getSessions(ctx context.Context, user *user) ([]sessionID, error) {
 		}
 	}
 
+	Info.Println("List of activities successfully downloaded")
+
 	return sessions, nil
 }
 
@@ -440,7 +436,7 @@ func downloadSessionData(ctx context.Context, user *user, id sessionID, format s
 }
 
 func downloadAllSessions(ctx context.Context, user *user, format string) ([]*sessionData, error) {
-	newCtx, cancel := context.WithTimeout(ctx, timeout)
+	newCtx, cancel := context.WithTimeout(ctx, httpTimeout)
 	sessions, err := getSessions(newCtx, user)
 
 	cancel()
@@ -449,50 +445,24 @@ func downloadAllSessions(ctx context.Context, user *user, format string) ([]*ses
 		return nil, err
 	}
 
-	jobs := make(chan sessionID, len(sessions))
-	defer close(jobs)
+	var data []*sessionData
 
 	for _, session := range sessions {
-		jobs <- session
-	}
-
-	var data []*sessionData
-	results := make(chan result)
-
-	newCtx, cancel = context.WithCancel(ctx)
-	defer cancel()
-
-	go func() {
-		for job := range jobs {
-			localCtx, cancel := context.WithTimeout(newCtx, timeout)
-			result := wrap(downloadSessionData(localCtx, user, job, format))
+		for {
+			newCtx, cancel := context.WithTimeout(ctx, httpTimeout)
+			sessionData, err := downloadSessionData(newCtx, user, session, format)
 
 			cancel()
 
-			select {
-			case results <- result:
-			case <-newCtx.Done():
-				return
-			}
-		}
-	}()
-
-	for {
-		select {
-		case result := <-results:
-			if result.err != nil {
-				return nil, result.err
+			if err != nil {
+				return nil, err
 			}
 
-			data = append(data, result.data)
-
-			if len(data) == len(sessions) {
-				return data, nil
-			}
-		case <-ctx.Done():
-			return nil, ctx.Err()
+			data = append(data, sessionData)
 		}
 	}
+
+	return data, nil
 }
 
 func archive(filename string, sessions []*sessionData) (err error) {
@@ -537,7 +507,7 @@ func main() {
 		Error.Fatal(err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), httpTimeout)
 	user, err := login(ctx, email, password)
 
 	cancel()
