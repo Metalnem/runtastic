@@ -47,10 +47,9 @@ const (
 	headerContentType        = "Content-Type"
 	headerDate               = "X-Date"
 
-	parallelism  = 10
 	outputFormat = "2006-01-02 15.04.05"
 	timeFormat   = "2006-01-02 15:04:05"
-	timeout      = 10 * time.Second
+	timeout      = 5 * time.Second
 )
 
 var (
@@ -463,22 +462,20 @@ func downloadAllSessions(ctx context.Context, user *user, format string) ([]*ses
 	newCtx, cancel = context.WithCancel(ctx)
 	defer cancel()
 
-	for i := 0; i < parallelism; i++ {
-		go func() {
-			for job := range jobs {
-				localCtx, cancel := context.WithTimeout(newCtx, timeout)
-				result := wrap(downloadSessionData(localCtx, user, job, format))
+	go func() {
+		for job := range jobs {
+			localCtx, cancel := context.WithTimeout(newCtx, timeout)
+			result := wrap(downloadSessionData(localCtx, user, job, format))
 
-				cancel()
+			cancel()
 
-				select {
-				case results <- result:
-				case <-newCtx.Done():
-					return
-				}
+			select {
+			case results <- result:
+			case <-newCtx.Done():
+				return
 			}
-		}()
-	}
+		}
+	}()
 
 	for {
 		select {
