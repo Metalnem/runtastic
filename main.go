@@ -61,7 +61,7 @@ var (
 	errAuthenticationFailed = errors.New("Invalid email address or password")
 	errInvalidFormat        = errors.New("Invalid export format")
 	errMissingCredentials   = errors.New("Missing email address or password")
-	errMissingFilename      = errors.New("Could not retrieve activity name from the server")
+	errMissingFilename      = errors.New("Failed to retrieve activity name from the server")
 	errNoSessions           = errors.New("There were no activities to backup")
 
 	// Info is used for logging information.
@@ -202,7 +202,7 @@ func loginApp(ctx context.Context, email, password string) (*appUser, error) {
 	resp, err := client.Do(req.WithContext(ctx))
 
 	if err != nil {
-		return nil, err
+		return nil, errors.WithMessage(err, "Failed to connect to Runtastic server")
 	}
 
 	defer resp.Body.Close()
@@ -213,14 +213,14 @@ func loginApp(ctx context.Context, email, password string) (*appUser, error) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New(resp.Status)
+		return nil, errors.WithMessage(errors.New(resp.Status), "Failed to login")
 	}
 
 	var data appUser
 	decoder := json.NewDecoder(resp.Body)
 
 	if err = decoder.Decode(&data); err != nil {
-		return nil, err
+		return nil, errors.WithMessage(err, "Invalid login response from server")
 	}
 
 	for _, cookie := range resp.Cookies() {
@@ -252,7 +252,7 @@ func loginWeb(ctx context.Context, email, password string) (*webUser, error) {
 	resp, err := client.Do(req.WithContext(ctx))
 
 	if err != nil {
-		return nil, err
+		return nil, errors.WithMessage(err, "Failed to connect to Runtastic server")
 	}
 
 	defer resp.Body.Close()
@@ -262,7 +262,7 @@ func loginWeb(ctx context.Context, email, password string) (*webUser, error) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New(resp.Status)
+		return nil, errors.WithMessage(errors.New(resp.Status), "Failed to login")
 	}
 
 	for _, cookie := range resp.Cookies() {
@@ -281,11 +281,15 @@ func login(ctx context.Context, email, password string) (*user, error) {
 		return nil, err
 	}
 
+	Info.Println("Application login successful")
+
 	web, err := loginWeb(ctx, email, password)
 
 	if err != nil {
 		return nil, err
 	}
+
+	Info.Println("Web login successful")
 
 	return &user{appUser: *app, webUser: *web}, nil
 }
@@ -312,20 +316,20 @@ func getSessions(ctx context.Context, user *user) ([]sessionID, error) {
 		resp, err := client.Do(req.WithContext(ctx))
 
 		if err != nil {
-			return nil, err
+			return nil, errors.WithMessage(err, "Failed to download list of activities")
 		}
 
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
-			return nil, errors.New(resp.Status)
+			return nil, errors.WithMessage(errors.New(resp.Status), "Failed to download list of activities")
 		}
 
 		var data activities
 		decoder := json.NewDecoder(resp.Body)
 
 		if err = decoder.Decode(&data); err != nil {
-			return nil, err
+			return nil, errors.WithMessage(err, "Invalid activity list response from server")
 		}
 
 		for _, session := range data.Sessions {
@@ -366,20 +370,20 @@ func getExportID(ctx context.Context, user *user, id sessionID) (exportID, error
 	resp, err := client.Do(req.WithContext(ctx))
 
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "Failed to retrieve export ID for session %s", id)
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", errors.New(resp.Status)
+		return "", errors.Wrapf(errors.New(resp.Status), "Failed to retrieve export ID for session %s", id)
 	}
 
 	var data sample
 	decoder := json.NewDecoder(resp.Body)
 
 	if err = decoder.Decode(&data); err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "Invalid export ID response from server for session %s", id)
 	}
 
 	return exportID(data.Data.ID), nil
@@ -391,6 +395,8 @@ func downloadSessionData(ctx context.Context, user *user, id sessionID, format s
 	if err != nil {
 		return nil, err
 	}
+
+	Info.Printf("Export ID for session %s is %s\n", id, exportID)
 
 	url := fmt.Sprintf("%s/en/users/%s/sport-sessions/%s.%s", baseWebURL, user.ID, exportID, format)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -405,7 +411,7 @@ func downloadSessionData(ctx context.Context, user *user, id sessionID, format s
 	resp, err := client.Do(req.WithContext(ctx))
 
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed to download session data for session %s", id)
 	}
 
 	defer resp.Body.Close()
@@ -414,7 +420,7 @@ func downloadSessionData(ctx context.Context, user *user, id sessionID, format s
 	_, params, err := mime.ParseMediaType(h)
 
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed to download session data for session %s", id)
 	}
 
 	filename := params["filename"]
@@ -426,8 +432,10 @@ func downloadSessionData(ctx context.Context, user *user, id sessionID, format s
 	data, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Invalid session data received from server for session %s", id)
 	}
+
+	Info.Printf("Session %s downloaded\n", filename)
 
 	return &sessionData{Filename: filename, Data: data}, nil
 }
@@ -494,7 +502,7 @@ func archive(filename string, sessions []*sessionData) (err error) {
 	file, err := os.Create(filename)
 
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to create file %s", filename)
 	}
 
 	defer checkedClose(file, &err)
@@ -509,7 +517,7 @@ func archive(filename string, sessions []*sessionData) (err error) {
 		}
 
 		if _, err = w.Write(session.Data); err != nil {
-			return err
+			return errors.Wrapf(err, "Failed to save session %s", session.Filename)
 		}
 	}
 
@@ -557,5 +565,5 @@ func main() {
 		Error.Fatal(err)
 	}
 
-	Info.Println("Activities successfully downloaded")
+	Info.Printf("Activities successfully archived to %s\n", filename)
 }
