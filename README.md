@@ -9,7 +9,7 @@ Command line tool to archive all your Runtastic activities.
 ## Usage
 
 ```
-$ ./runtastic-cli
+$ ./runtastic
 Usage of ./runtastic:
   -email string
     	Email (required)
