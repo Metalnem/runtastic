@@ -24,7 +24,7 @@ func read(r io.Reader) (trackPoint, error) {
 	var timestamp int64
 
 	if err := binary.Read(r, binary.BigEndian, &timestamp); err != nil {
-		return trackPoint{}, nil
+		return trackPoint{}, err
 	}
 
 	point.Time = time.Unix(timestamp/1000, timestamp%1000*1000)
