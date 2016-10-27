@@ -19,33 +19,35 @@ type trackPoint struct {
 	Time      time.Time
 }
 
-func read(r io.Reader) (trackPoint, error) {
+type reader struct {
+	io.Reader
+	err error
+}
+
+func (r *reader) read(data interface{}) {
+	if r.err == nil {
+		r.err = binary.Read(r.Reader, binary.BigEndian, data)
+	}
+}
+
+func read(input io.Reader) (trackPoint, error) {
 	var point trackPoint
 	var timestamp int64
 
-	if err := binary.Read(r, binary.BigEndian, &timestamp); err != nil {
-		return trackPoint{}, err
+	unknown := make([]byte, 18)
+	r := reader{input, nil}
+
+	r.read(&timestamp)
+	r.read(&point.Longitude)
+	r.read(&point.Latitude)
+	r.read(&point.Elevation)
+	r.read(unknown)
+
+	if r.err != nil {
+		return trackPoint{}, r.err
 	}
 
 	point.Time = time.Unix(timestamp/1000, timestamp%1000*1000)
-
-	if err := binary.Read(r, binary.BigEndian, &point.Longitude); err != nil {
-		return trackPoint{}, err
-	}
-
-	if err := binary.Read(r, binary.BigEndian, &point.Latitude); err != nil {
-		return trackPoint{}, err
-	}
-
-	if err := binary.Read(r, binary.BigEndian, &point.Elevation); err != nil {
-		return trackPoint{}, err
-	}
-
-	rest := make([]byte, 18)
-
-	if err := binary.Read(r, binary.BigEndian, rest); err != nil {
-		return trackPoint{}, err
-	}
 
 	return point, nil
 }
@@ -77,8 +79,6 @@ func main() {
 	if err = binary.Read(buf, binary.BigEndian, &size); err != nil {
 		log.Fatal(err)
 	}
-
-	fmt.Println(size)
 
 	for i := 0; i < int(size); i++ {
 		point, err := read(buf)
