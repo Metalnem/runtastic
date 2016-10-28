@@ -21,6 +21,21 @@ type trackPoint struct {
 	Time      rfc3339Time `xml:"name>time"`
 }
 
+type gpx struct {
+	XMLName xml.Name `xml:"gpx"`
+	Track   track
+}
+
+type track struct {
+	XMLName xml.Name `xml:"trk"`
+	Segment segment
+}
+
+type segment struct {
+	XMLName xml.Name `xml:"trkseg"`
+	Points  []trackPoint
+}
+
 type rfc3339Time struct {
 	time.Time
 }
@@ -106,7 +121,8 @@ func main() {
 		points = append(points, point)
 	}
 
-	b, err := xml.MarshalIndent(points, "", "  ")
+	data := gpx{Track: track{Segment: segment{Points: points}}}
+	b, err := xml.MarshalIndent(data, "", "  ")
 
 	if err != nil {
 		log.Fatal(err)
