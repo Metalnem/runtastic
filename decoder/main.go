@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,10 +14,11 @@ import (
 )
 
 type trackPoint struct {
-	Longitude float32
-	Latitude  float32
-	Elevation float32
-	Time      time.Time
+	XMLName   xml.Name  `xml:"trkpt"`
+	Longitude float32   `xml:"lon,attr"`
+	Latitude  float32   `xml:"lat,attr"`
+	Elevation float32   `xml:"name>ele"`
+	Time      time.Time `xml:"name>time"`
 }
 
 type reader struct {
@@ -80,13 +82,24 @@ func main() {
 		log.Fatal(err)
 	}
 
+	var points []trackPoint
+
 	for i := 0; i < int(size); i++ {
-		point, err := read(buf)
+		var point trackPoint
+		point, err = read(buf)
 
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		fmt.Printf("%+v\n", point)
+		points = append(points, point)
 	}
+
+	b, err := xml.MarshalIndent(points, "", "  ")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(string(b))
 }
