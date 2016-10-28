@@ -53,7 +53,7 @@ func read(input io.Reader) (trackPoint, error) {
 }
 
 func main() {
-	raw, err := ioutil.ReadFile("activity.dat")
+	raw, err := ioutil.ReadFile("large-activity.dat")
 
 	if err != nil {
 		log.Fatal(err)
