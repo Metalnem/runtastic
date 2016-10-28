@@ -14,16 +14,26 @@ import (
 )
 
 type trackPoint struct {
-	XMLName   xml.Name  `xml:"trkpt"`
-	Longitude float32   `xml:"lon,attr"`
-	Latitude  float32   `xml:"lat,attr"`
-	Elevation float32   `xml:"name>ele"`
-	Time      time.Time `xml:"name>time"`
+	XMLName   xml.Name    `xml:"trkpt"`
+	Longitude float32     `xml:"lon,attr"`
+	Latitude  float32     `xml:"lat,attr"`
+	Elevation float32     `xml:"name>ele"`
+	Time      rfc3339Time `xml:"name>time"`
+}
+
+type rfc3339Time struct {
+	time.Time
 }
 
 type reader struct {
 	io.Reader
 	err error
+}
+
+// MarshalXML is a custom XML marshaller that formats time using RFC3339 format.
+func (t rfc3339Time) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	e.EncodeElement(t.Format(time.RFC3339), start)
+	return nil
 }
 
 func (r *reader) read(data interface{}) {
@@ -49,7 +59,8 @@ func read(input io.Reader) (trackPoint, error) {
 		return trackPoint{}, r.err
 	}
 
-	point.Time = time.Unix(timestamp/1000, timestamp%1000*1000)
+	t := time.Unix(timestamp/1000, timestamp%1000*1000)
+	point.Time = rfc3339Time{t.UTC()}
 
 	return point, nil
 }
