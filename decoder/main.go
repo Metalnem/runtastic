@@ -13,14 +13,6 @@ import (
 	"time"
 )
 
-type trackPoint struct {
-	XMLName   xml.Name    `xml:"trkpt"`
-	Longitude float32     `xml:"lon,attr"`
-	Latitude  float32     `xml:"lat,attr"`
-	Elevation float32     `xml:"ele,omitempty"`
-	Time      rfc3339Time `xml:"time,omitempty"`
-}
-
 type gpx struct {
 	XMLName xml.Name `xml:"gpx"`
 	Version float32  `xml:"version,attr"`
@@ -30,12 +22,20 @@ type gpx struct {
 
 type track struct {
 	XMLName xml.Name `xml:"trk"`
-	Segment segment
+	Segment trackSegment
 }
 
-type segment struct {
+type trackSegment struct {
 	XMLName xml.Name `xml:"trkseg"`
 	Points  []trackPoint
+}
+
+type trackPoint struct {
+	XMLName   xml.Name    `xml:"trkpt"`
+	Longitude float32     `xml:"lon,attr"`
+	Latitude  float32     `xml:"lat,attr"`
+	Elevation float32     `xml:"ele,omitempty"`
+	Time      rfc3339Time `xml:"time,omitempty"`
 }
 
 type rfc3339Time struct {
@@ -126,7 +126,7 @@ func main() {
 	data := gpx{
 		Version: 1.1,
 		Creator: "Runtastic Archiver, https://github.com/Metalnem/runtastic",
-		Track:   track{Segment: segment{Points: points}},
+		Track:   track{Segment: trackSegment{Points: points}},
 	}
 
 	b, err := xml.MarshalIndent(data, "", "  ")
