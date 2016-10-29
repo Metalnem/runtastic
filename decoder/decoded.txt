@@ -1,5 +1,6 @@
 https://www.h-schmidt.net/FloatConverter/IEEE754.html
 http://www.unixtimestamp.com/index.php
+http://www.topografix.com/gpx/1/1/
 
 0 0 0 3
 0 0 1 87 15 174 35 8 65 163 195 216 66 51 61 48 67 1 124 18 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0

@@ -17,12 +17,14 @@ type trackPoint struct {
 	XMLName   xml.Name    `xml:"trkpt"`
 	Longitude float32     `xml:"lon,attr"`
 	Latitude  float32     `xml:"lat,attr"`
-	Elevation float32     `xml:"name>ele"`
-	Time      rfc3339Time `xml:"name>time"`
+	Elevation float32     `xml:"ele,omitempty"`
+	Time      rfc3339Time `xml:"time,omitempty"`
 }
 
 type gpx struct {
 	XMLName xml.Name `xml:"gpx"`
+	Version float32  `xml:"version,attr"`
+	Creator string   `xml:"creator,attr"`
 	Track   track
 }
 
@@ -81,7 +83,7 @@ func read(input io.Reader) (trackPoint, error) {
 }
 
 func main() {
-	raw, err := ioutil.ReadFile("large-activity.dat")
+	raw, err := ioutil.ReadFile("activity.dat")
 
 	if err != nil {
 		log.Fatal(err)
@@ -121,12 +123,17 @@ func main() {
 		points = append(points, point)
 	}
 
-	data := gpx{Track: track{Segment: segment{Points: points}}}
+	data := gpx{
+		Version: 1.1,
+		Creator: "Runtastic Archiver, https://github.com/Metalnem/runtastic",
+		Track:   track{Segment: segment{Points: points}},
+	}
+
 	b, err := xml.MarshalIndent(data, "", "  ")
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println(string(b))
+	fmt.Println(xml.Header + string(b))
 }
