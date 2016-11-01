@@ -5,8 +5,11 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha1"
+	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/xml"
 	"flag"
 	"fmt"
 	"io"
@@ -14,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -94,6 +98,52 @@ type sessionData struct {
 			Trace string `json:"trace"`
 		} `json:"gpsData"`
 	} `json:"runSessions"`
+}
+
+type gpx struct {
+	XMLName xml.Name `xml:"gpx"`
+	Version float32  `xml:"version,attr"`
+	Creator string   `xml:"creator,attr"`
+	Track   track
+}
+
+type track struct {
+	XMLName xml.Name `xml:"trk"`
+	Segment trackSegment
+}
+
+type trackSegment struct {
+	XMLName xml.Name `xml:"trkseg"`
+	Points  []trackPoint
+}
+
+type trackPoint struct {
+	XMLName   xml.Name    `xml:"trkpt"`
+	Longitude float32     `xml:"lon,attr"`
+	Latitude  float32     `xml:"lat,attr"`
+	Elevation float32     `xml:"ele,omitempty"`
+	Time      rfc3339Time `xml:"time,omitempty"`
+}
+
+type rfc3339Time struct {
+	time.Time
+}
+
+type reader struct {
+	io.Reader
+	err error
+}
+
+// MarshalXML is a custom XML marshaller that formats time using RFC3339 format.
+func (t rfc3339Time) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	e.EncodeElement(t.Format(time.RFC3339), start)
+	return nil
+}
+
+func (r *reader) read(data interface{}) {
+	if r.err == nil {
+		r.err = binary.Read(r.Reader, binary.BigEndian, data)
+	}
 }
 
 func checkedClose(c io.Closer, err *error) {
@@ -318,19 +368,86 @@ func downloadSessionData(ctx context.Context, user *user, id sessionID) (*sessio
 		return nil, errors.Wrapf(err, "Invalid session data received from server for session %s", id)
 	}
 
-	Info.Printf("Session %s downloaded\n", id)
+	if data.RunSessions.ID == "" || data.RunSessions.StartTime == "" || data.RunSessions.GPSData.Trace == "" {
+		return nil, errors.Wrapf(err, "Incomplete session data received from server for session %s", id)
+	}
 
 	return &data, nil
 }
 
-func downloadAllSessions(ctx context.Context, user *user) ([]*sessionData, error) {
+func parseSessionData(data *sessionData) (*gpx, error) {
+	encoded := strings.Split(data.RunSessions.GPSData.Trace, "\\n")
+	var decoded []byte
+
+	for _, line := range encoded {
+		b, err := base64.StdEncoding.DecodeString(line)
+
+		if err != nil {
+			return nil, errors.Wrapf(err, "GPS trace for session %s is not a valid Base64 string", data.RunSessions.ID)
+		}
+
+		decoded = append(decoded, b...)
+	}
+
+	buf := bytes.NewBuffer(decoded)
+	var size int32
+
+	if err := binary.Read(buf, binary.BigEndian, &size); err != nil {
+		return nil, errors.Wrapf(err, "GPS trace for session %s is invalid", data.RunSessions.ID)
+	}
+
+	var points []trackPoint
+
+	for i := 0; i < int(size); i++ {
+		point, err := readTrackPoint(buf)
+
+		if err != nil {
+			return nil, errors.Wrapf(err, "GPS trace for session %s is invalid", data.RunSessions.ID)
+		}
+
+		points = append(points, point)
+	}
+
+	result := &gpx{
+		Version: 1.1,
+		Creator: "Runtastic Archiver, https://github.com/Metalnem/runtastic",
+		Track:   track{Segment: trackSegment{Points: points}},
+	}
+
+	return result, nil
+}
+
+func readTrackPoint(input io.Reader) (trackPoint, error) {
+	var point trackPoint
+	var timestamp int64
+
+	unknown := make([]byte, 18)
+	r := reader{input, nil}
+
+	r.read(&timestamp)
+	r.read(&point.Longitude)
+	r.read(&point.Latitude)
+	r.read(&point.Elevation)
+	r.read(unknown)
+
+	if r.err != nil {
+		return trackPoint{}, r.err
+	}
+
+	t := time.Unix(timestamp/1000, timestamp%1000*1000)
+	point.Time = rfc3339Time{t.UTC()}
+
+	return point, nil
+}
+
+func downloadAllSessions(ctx context.Context, user *user) ([]*gpx, error) {
 	sessions, err := getSessions(ctx, user)
 
 	if err != nil {
 		return nil, err
 	}
 
-	var data []*sessionData
+	var data []*gpx
 
 	for _, session := range sessions {
 		sessionData, err := downloadSessionData(ctx, user, session)
@@ -339,13 +456,21 @@ func downloadAllSessions(ctx context.Context, user *user) ([]*sessionData, error
 			return nil, err
 		}
 
-		data = append(data, sessionData)
+		gpx, err := parseSessionData(sessionData)
+
+		if err != nil {
+			return nil, err
+		}
+
+		Info.Printf("Session %s downloaded\n", session)
+
+		data = append(data, gpx)
 	}
 
 	return data, nil
 }
 
-func archive(filename string, sessions []*sessionData) (err error) {
+func archive(filename string, sessions []*gpx) (err error) {
 	file, err := os.Create(filename)
 
 	if err != nil {
@@ -356,15 +481,22 @@ func archive(filename string, sessions []*sessionData) (err error) {
 	zw := zip.NewWriter(file)
 	defer checkedClose(zw, &err)
 
-	for _, session := range sessions {
-		filename := string(session.RunSessions.ID)
+	for i, session := range sessions {
+		filename := strconv.Itoa(i)
 		w, err := zw.Create(filename)
 
 		if err != nil {
 			return err
 		}
 
-		if _, err = w.Write([]byte(session.RunSessions.GPSData.Trace)); err != nil {
+		if _, err = fmt.Fprint(w, xml.Header); err != nil {
+			return errors.Wrapf(err, "Failed to save session %s", filename)
+		}
+
+		encoder := xml.NewEncoder(w)
+		encoder.Indent("", "  ")
+
+		if err = encoder.Encode(session); err != nil {
 			return errors.Wrapf(err, "Failed to save session %s", filename)
 		}
 	}
