@@ -101,6 +101,7 @@ type sessionData struct {
 }
 
 type gpx struct {
+	ID      sessionID
 	XMLName xml.Name `xml:"gpx"`
 	Version float32  `xml:"version,attr"`
 	Creator string   `xml:"creator,attr"`
@@ -409,6 +410,7 @@ func parseSessionData(data *sessionData) (*gpx, error) {
 	}
 
 	result := &gpx{
+		ID:      sessionID(data.RunSessions.ID),
 		Version: 1.1,
 		Creator: "Runtastic Archiver, https://github.com/Metalnem/runtastic",
 		Track:   track{Segment: trackSegment{Points: points}},
@@ -481,8 +483,8 @@ func archive(filename string, sessions []*gpx) (err error) {
 	zw := zip.NewWriter(file)
 	defer checkedClose(zw, &err)
 
-	for i, session := range sessions {
-		filename := strconv.Itoa(i)
+	for _, session := range sessions {
+		filename := fmt.Sprintf("%s.gpx", session.ID)
 		w, err := zw.Create(filename)
 
 		if err != nil {
