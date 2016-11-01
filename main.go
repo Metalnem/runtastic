@@ -12,32 +12,23 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"mime"
 	"net/http"
-	"net/url"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
 )
 
 const (
-	appKeyAndroid = "com.runtastic.android"
-	appKeyEmber   = "com.runtastic.ember"
-
-	appSecret = "T68bA6dHk2ayW1Y39BQdEnUmGqM8Zq1SFZ3kNas3KYDjp471dJNXLcoYWsDBd1mH"
-
-	appVersionAndroid = "6.9.2"
-	appVersionEmber   = "1.0"
+	appKey     = "com.runtastic.android"
+	appSecret  = "T68bA6dHk2ayW1Y39BQdEnUmGqM8Zq1SFZ3kNas3KYDjp471dJNXLcoYWsDBd1mH"
+	appVersion = "6.9.2"
 
 	baseAppURL  = "https://appws.runtastic.com"
 	baseHubsURL = "https://hubs.runtastic.com"
-	baseWebURL  = "https://www.runtastic.com"
 
 	cookieAppSession = "_runtastic_appws_session"
-	cookieWebSession = "_runtastic_session"
 
 	headerAccept             = "Accept"
 	headerAppKey             = "X-App-Key"
@@ -58,12 +49,9 @@ const (
 var (
 	email    = flag.String("email", "", "Email (required)")
 	password = flag.String("password", "", "Password (required)")
-	format   = flag.String("format", "gpx", "Optional export format (gpx, tcx or kml)")
 
 	errAuthenticationFailed = errors.New("Invalid email address or password")
-	errInvalidFormat        = errors.New("Invalid export format")
 	errMissingCredentials   = errors.New("Missing email address or password")
-	errMissingFilename      = errors.New("Failed to retrieve activity name from the server")
 	errNoSessions           = errors.New("There were no activities to backup")
 
 	// Info is used for logging information.
@@ -74,7 +62,6 @@ var (
 )
 
 type sessionID string
-type exportID string
 
 type loginRequest struct {
 	Email                string   `json:"email"`
@@ -82,19 +69,10 @@ type loginRequest struct {
 	Password             string   `json:"password"`
 }
 
-type appUser struct {
+type user struct {
 	ID          string `json:"userId"`
 	AccessToken string `json:"accessToken"`
 	SessionID   string
-}
-
-type webUser struct {
-	SessionCookie string
-}
-
-type user struct {
-	appUser
-	webUser
 }
 
 type activities struct {
@@ -109,12 +87,6 @@ type session struct {
 	GPSTraceAvailable string    `json:"gpsTraceAvailable"`
 }
 
-type sample struct {
-	Data struct {
-		ID sessionID `json:"ID"`
-	} `json:"data"`
-}
-
 type sessionData struct {
 	Filename string
 	Data     []byte
@@ -126,18 +98,8 @@ func checkedClose(c io.Closer, err *error) {
 	}
 }
 
-func getFormat(format string) (string, error) {
-	format = strings.ToLower(format)
-
-	if format != "gpx" && format != "tcx" && format != "kml" {
-		return "", errInvalidFormat
-	}
-
-	return format, nil
-}
-
 func buildAuthToken(t time.Time) string {
-	s := fmt.Sprintf("--%s--%s--%s--", appKeyAndroid, appSecret, t.Format(timeFormat))
+	s := fmt.Sprintf("--%s--%s--%s--", appKey, appSecret, t.Format(timeFormat))
 	hash := sha1.Sum([]byte(s))
 
 	return hex.EncodeToString(hash[:])
@@ -148,8 +110,8 @@ func setHeaders(header http.Header) {
 	authToken := buildAuthToken(t)
 
 	header.Set(headerContentType, "application/json")
-	header.Set(headerAppKey, appKeyAndroid)
-	header.Set(headerAppVersion, appVersionAndroid)
+	header.Set(headerAppKey, appKey)
+	header.Set(headerAppVersion, appVersion)
 	header.Set(headerAuthToken, authToken)
 	header.Set(headerDate, t.Format(timeFormat))
 }
@@ -172,7 +134,7 @@ func getCredentials() (string, string, error) {
 	return "", "", errMissingCredentials
 }
 
-func loginApp(ctx context.Context, email, password string) (*appUser, error) {
+func login(ctx context.Context, email, password string) (*user, error) {
 	ctx, cancel := context.WithTimeout(ctx, httpTimeout)
 	defer cancel()
 
@@ -213,7 +175,7 @@ func loginApp(ctx context.Context, email, password string) (*appUser, error) {
 		return nil, errors.WithMessage(errors.New(resp.Status), "Failed to login")
 	}
 
-	var data appUser
+	var data user
 	decoder := json.NewDecoder(resp.Body)
 
 	if err = decoder.Decode(&data); err != nil {
@@ -226,71 +188,9 @@ func loginApp(ctx context.Context, email, password string) (*appUser, error) {
 		}
 	}
 
+	Info.Println("Login successful")
+
 	return &data, nil
-}
-
-func loginWeb(ctx context.Context, email, password string) (*webUser, error) {
-	ctx, cancel := context.WithTimeout(ctx, httpTimeout)
-	defer cancel()
-
-	params := url.Values{}
-	params.Set("user[email]", email)
-	params.Set("user[password]", password)
-	params.Set("grant_type", "password")
-
-	body := bytes.NewBufferString(params.Encode())
-	req, err := http.NewRequest(http.MethodPost, baseWebURL+"/en/d/users/sign_in", body)
-
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set(headerAccept, "application/json")
-
-	client := new(http.Client)
-	resp, err := client.Do(req.WithContext(ctx))
-
-	if err != nil {
-		return nil, errors.WithMessage(err, "Failed to connect to Runtastic server")
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusUnauthorized {
-		return nil, errAuthenticationFailed
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, errors.WithMessage(errors.New(resp.Status), "Failed to login")
-	}
-
-	for _, cookie := range resp.Cookies() {
-		if cookie.Name == cookieWebSession {
-			return &webUser{cookie.Value}, nil
-		}
-	}
-
-	return nil, errAuthenticationFailed
-}
-
-func login(ctx context.Context, email, password string) (*user, error) {
-	app, err := loginApp(ctx, email, password)
-
-	if err != nil {
-		return nil, err
-	}
-
-	Info.Println("Application login successful")
-
-	web, err := loginWeb(ctx, email, password)
-
-	if err != nil {
-		return nil, err
-	}
-
-	Info.Println("Web login successful")
-
-	return &user{appUser: *app, webUser: *web}, nil
 }
 
 func getSessions(ctx context.Context, user *user) ([]sessionID, error) {
@@ -376,60 +276,26 @@ func getSessions(ctx context.Context, user *user) ([]sessionID, error) {
 	return sessions, nil
 }
 
-func getExportID(ctx context.Context, user *user, id sessionID) (exportID, error) {
+func downloadSessionData(ctx context.Context, user *user, id sessionID) (*sessionData, error) {
 	ctx, cancel := context.WithTimeout(ctx, httpTimeout)
 	defer cancel()
 
-	url := fmt.Sprintf("%s/samples/v2/users/%s/samples/%s", baseHubsURL, user.ID, id)
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-
-	if err != nil {
-		return "", err
-	}
-
-	req.Header.Set(headerAppKey, appKeyEmber)
-	req.Header.Set(headerAppVersion, appVersionEmber)
-
-	req.AddCookie(&http.Cookie{Name: cookieWebSession, Value: user.SessionCookie})
-
-	client := new(http.Client)
-	resp, err := client.Do(req.WithContext(ctx))
-
-	if err != nil {
-		return "", errors.Wrapf(err, "Failed to retrieve export ID for session %s", id)
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", errors.Wrapf(errors.New(resp.Status), "Failed to retrieve export ID for session %s", id)
-	}
-
-	var data sample
-	decoder := json.NewDecoder(resp.Body)
-
-	if err = decoder.Decode(&data); err != nil {
-		return "", errors.Wrapf(err, "Invalid export ID response from server for session %s", id)
-	}
-
-	return exportID(data.Data.ID), nil
-}
-
-func downloadSessionData(ctx context.Context, user *user, id sessionID, exportID exportID, format string) (*sessionData, error) {
-	ctx, cancel := context.WithTimeout(ctx, httpTimeout)
-	defer cancel()
-
-	url := fmt.Sprintf("%s/en/users/%s/sport-sessions/%s.%s", baseWebURL, user.ID, exportID, format)
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	url := fmt.Sprintf("%s/webapps/services/runsessions/v2/%s/details?access_token=%s", baseAppURL, id, user.AccessToken)
+	body := bytes.NewReader([]byte(`{"includeGpsTrace":{"include":"true","version":"1"}}`))
+	req, err := http.NewRequest(http.MethodPost, url, body)
 
 	if err != nil {
 		return nil, err
 	}
 
-	req.AddCookie(&http.Cookie{Name: cookieWebSession, Value: user.SessionCookie})
+	setHeaders(req.Header)
+	req.AddCookie(&http.Cookie{Name: cookieAppSession, Value: user.SessionID})
 
 	client := new(http.Client)
 	resp, err := client.Do(req.WithContext(ctx))
+
+	setHeaders(req.Header)
+	req.AddCookie(&http.Cookie{Name: cookieAppSession, Value: user.SessionID})
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to download session data for session %s", id)
@@ -437,17 +303,8 @@ func downloadSessionData(ctx context.Context, user *user, id sessionID, exportID
 
 	defer resp.Body.Close()
 
-	h := resp.Header.Get(headerContentDisposition)
-	_, params, err := mime.ParseMediaType(h)
-
-	if err != nil {
+	if resp.StatusCode != http.StatusOK {
 		return nil, errors.Wrapf(err, "Failed to download session data for session %s", id)
-	}
-
-	filename := params["filename"]
-
-	if filename == "" {
-		return nil, errMissingFilename
 	}
 
 	data, err := ioutil.ReadAll(resp.Body)
@@ -456,41 +313,12 @@ func downloadSessionData(ctx context.Context, user *user, id sessionID, exportID
 		return nil, errors.Wrapf(err, "Invalid session data received from server for session %s", id)
 	}
 
-	Info.Printf("Session %s downloaded\n", filename)
+	Info.Printf("Session %s downloaded\n", id)
 
-	return &sessionData{Filename: filename, Data: data}, nil
+	return &sessionData{Filename: string(id), Data: data}, nil
 }
 
-func downloadSessionDataWithRetry(ctx context.Context, user *user, id sessionID, format string) (*sessionData, error) {
-	exportID, err := getExportID(ctx, user, id)
-
-	if err != nil {
-		return nil, err
-	}
-
-	Info.Printf("Export ID for session %s is %s\n", id, exportID)
-
-	deadline, cancel := context.WithTimeout(ctx, totalTimeout)
-	defer cancel()
-
-	Info.Printf("Downloading session %s\n", id)
-
-	for {
-		sessionData, err := downloadSessionData(deadline, user, id, exportID, format)
-
-		if err == nil {
-			return sessionData, nil
-		}
-
-		select {
-		case <-deadline.Done():
-			return nil, deadline.Err()
-		case <-time.After(retryTimeout):
-		}
-	}
-}
-
-func downloadAllSessions(ctx context.Context, user *user, format string) ([]*sessionData, error) {
+func downloadAllSessions(ctx context.Context, user *user) ([]*sessionData, error) {
 	sessions, err := getSessions(ctx, user)
 
 	if err != nil {
@@ -500,7 +328,7 @@ func downloadAllSessions(ctx context.Context, user *user, format string) ([]*ses
 	var data []*sessionData
 
 	for _, session := range sessions {
-		sessionData, err := downloadSessionDataWithRetry(ctx, user, session, format)
+		sessionData, err := downloadSessionData(ctx, user, session)
 
 		if err != nil {
 			return nil, err
@@ -548,19 +376,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	format, err := getFormat(*format)
-
-	if err != nil {
-		Error.Fatal(err)
-	}
-
 	user, err := login(context.Background(), email, password)
 
 	if err != nil {
 		Error.Fatal(err)
 	}
 
-	sessions, err := downloadAllSessions(context.Background(), user, format)
+	sessions, err := downloadAllSessions(context.Background(), user)
 
 	if err != nil {
 		Error.Fatal(err)
