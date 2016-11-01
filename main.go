@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -88,8 +87,13 @@ type session struct {
 }
 
 type sessionData struct {
-	Filename string
-	Data     []byte
+	RunSessions struct {
+		ID        string `json:"id"`
+		StartTime string `json:"startTime"`
+		GPSData   struct {
+			Trace string `json:"trace"`
+		} `json:"gpsData"`
+	} `json:"runSessions"`
 }
 
 func checkedClose(c io.Closer, err *error) {
@@ -307,15 +311,16 @@ func downloadSessionData(ctx context.Context, user *user, id sessionID) (*sessio
 		return nil, errors.Wrapf(err, "Failed to download session data for session %s", id)
 	}
 
-	data, err := ioutil.ReadAll(resp.Body)
+	var data sessionData
+	decoder := json.NewDecoder(resp.Body)
 
-	if err != nil {
+	if err = decoder.Decode(&data); err != nil {
 		return nil, errors.Wrapf(err, "Invalid session data received from server for session %s", id)
 	}
 
 	Info.Printf("Session %s downloaded\n", id)
 
-	return &sessionData{Filename: string(id), Data: data}, nil
+	return &data, nil
 }
 
 func downloadAllSessions(ctx context.Context, user *user) ([]*sessionData, error) {
@@ -352,14 +357,15 @@ func archive(filename string, sessions []*sessionData) (err error) {
 	defer checkedClose(zw, &err)
 
 	for _, session := range sessions {
-		w, err := zw.Create(session.Filename)
+		filename := string(session.RunSessions.ID)
+		w, err := zw.Create(filename)
 
 		if err != nil {
 			return err
 		}
 
-		if _, err = w.Write(session.Data); err != nil {
-			return errors.Wrapf(err, "Failed to save session %s", session.Filename)
+		if _, err = w.Write([]byte(session.RunSessions.GPSData.Trace)); err != nil {
+			return errors.Wrapf(err, "Failed to save session %s", filename)
 		}
 	}
 
