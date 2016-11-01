@@ -77,9 +77,9 @@ type sessionID string
 type exportID string
 
 type loginRequest struct {
-	Email      string   `json:"email"`
-	Attributes []string `json:"additionalAttributes"`
-	Password   string   `json:"password"`
+	Email                string   `json:"email"`
+	AdditionalAttributes []string `json:"additionalAttributes"`
+	Password             string   `json:"password"`
 }
 
 type appUser struct {
@@ -104,8 +104,9 @@ type activities struct {
 }
 
 type session struct {
-	ID        sessionID `json:"id"`
-	DeletedAt string    `json:"deletedAt"`
+	ID                sessionID `json:"id"`
+	DeletedAt         string    `json:"deletedAt"`
+	GPSTraceAvailable string    `json:"gpsTraceAvailable"`
 }
 
 type sample struct {
@@ -176,9 +177,9 @@ func loginApp(ctx context.Context, email, password string) (*appUser, error) {
 	defer cancel()
 
 	b, err := json.Marshal(loginRequest{
-		Email:      email,
-		Attributes: []string{"accessToken"},
-		Password:   password,
+		Email:                email,
+		AdditionalAttributes: []string{"accessToken"},
+		Password:             password,
 	})
 
 	if err != nil {
@@ -335,7 +336,18 @@ func getSessions(ctx context.Context, user *user) ([]sessionID, error) {
 			}
 
 			for _, session := range data.Sessions {
-				if session.DeletedAt == "" {
+				if session.DeletedAt != "" {
+					continue
+				}
+
+				var hasTrace bool
+				hasTrace, err = strconv.ParseBool(session.GPSTraceAvailable)
+
+				if err != nil {
+					return err
+				}
+
+				if hasTrace {
 					l := len(sessions)
 					id := sessionID(session.ID)
 
