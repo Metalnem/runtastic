@@ -94,6 +94,7 @@ type sessionData struct {
 	RunSessions struct {
 		ID        string `json:"id"`
 		StartTime string `json:"startTime"`
+		EndTime   string `json:"endTime"`
 		GPSData   struct {
 			Trace string `json:"trace"`
 		} `json:"gpsData"`
@@ -110,8 +111,9 @@ type gpx struct {
 }
 
 type metadata struct {
-	XMLName xml.Name    `xml:"metadata"`
-	Time    rfc3339Time `xml:"time"`
+	XMLName   xml.Name    `xml:"metadata"`
+	StartTime rfc3339Time `xml:"time"`
+	EndTime   time.Time   `xml:"-"`
 }
 
 type track struct {
@@ -415,18 +417,27 @@ func parseSessionData(data *sessionData) (*gpx, error) {
 		points = append(points, point)
 	}
 
-	timestamp, err := strconv.ParseInt(data.RunSessions.StartTime, 10, 64)
+	startTime, err := strconv.ParseInt(data.RunSessions.StartTime, 10, 64)
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "Invalid start time %s for session %s", data.RunSessions.StartTime, data.RunSessions.ID)
 	}
 
+	endTime, err := strconv.ParseInt(data.RunSessions.EndTime, 10, 64)
+
+	if err != nil {
+		return nil, errors.Wrapf(err, "Invalid end time %s for session %s", data.RunSessions.EndTime, data.RunSessions.ID)
+	}
+
 	result := &gpx{
-		ID:       sessionID(data.RunSessions.ID),
-		Version:  1.1,
-		Creator:  "Runtastic Archiver, https://github.com/Metalnem/runtastic",
-		Metadata: metadata{Time: timestampToTime(timestamp)},
-		Track:    track{Segment: trackSegment{Points: points}},
+		ID:      sessionID(data.RunSessions.ID),
+		Version: 1.1,
+		Creator: "Runtastic Archiver, https://github.com/Metalnem/runtastic",
+		Metadata: metadata{
+			StartTime: rfc3339Time{timestampToTime(startTime).UTC()},
+			EndTime:   timestampToTime(endTime),
+		},
+		Track: track{Segment: trackSegment{Points: points}},
 	}
 
 	return result, nil
@@ -449,14 +460,14 @@ func readTrackPoint(input io.Reader) (trackPoint, error) {
 		return trackPoint{}, r.err
 	}
 
-	point.Time = timestampToTime(timestamp)
+	time := timestampToTime(timestamp).UTC()
+	point.Time = rfc3339Time{time}
 
 	return point, nil
 }
 
-func timestampToTime(timestamp int64) rfc3339Time {
-	t := time.Unix(timestamp/1000, timestamp%1000*1000)
-	return rfc3339Time{t.UTC()}
+func timestampToTime(timestamp int64) time.Time {
+	return time.Unix(timestamp/1000, timestamp%1000*1000)
 }
 
 func downloadAllSessions(ctx context.Context, user *user) ([]*gpx, error) {
@@ -501,7 +512,7 @@ func archive(filename string, sessions []*gpx) (err error) {
 	defer checkedClose(zw, &err)
 
 	for _, session := range sessions {
-		time := session.Metadata.Time.Format("20060102_1504")
+		time := session.Metadata.EndTime.Format("20060102_1504")
 		filename := fmt.Sprintf("runtastic_%s_Running.gpx", time)
 		w, err := zw.Create(filename)
 
