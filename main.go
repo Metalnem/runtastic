@@ -101,11 +101,17 @@ type sessionData struct {
 }
 
 type gpx struct {
-	ID      sessionID
-	XMLName xml.Name `xml:"gpx"`
-	Version float32  `xml:"version,attr"`
-	Creator string   `xml:"creator,attr"`
-	Track   track
+	ID       sessionID `xml:"-"`
+	XMLName  xml.Name  `xml:"gpx"`
+	Version  float32   `xml:"version,attr"`
+	Creator  string    `xml:"creator,attr"`
+	Metadata metadata
+	Track    track
+}
+
+type metadata struct {
+	XMLName xml.Name    `xml:"metadata"`
+	Time    rfc3339Time `xml:"time"`
 }
 
 type track struct {
@@ -409,11 +415,18 @@ func parseSessionData(data *sessionData) (*gpx, error) {
 		points = append(points, point)
 	}
 
+	timestamp, err := strconv.ParseInt(data.RunSessions.StartTime, 10, 64)
+
+	if err != nil {
+		return nil, errors.Wrapf(err, "Invalid start time %s for session %s", data.RunSessions.StartTime, data.RunSessions.ID)
+	}
+
 	result := &gpx{
-		ID:      sessionID(data.RunSessions.ID),
-		Version: 1.1,
-		Creator: "Runtastic Archiver, https://github.com/Metalnem/runtastic",
-		Track:   track{Segment: trackSegment{Points: points}},
+		ID:       sessionID(data.RunSessions.ID),
+		Version:  1.1,
+		Creator:  "Runtastic Archiver, https://github.com/Metalnem/runtastic",
+		Metadata: metadata{Time: timestampToTime(timestamp)},
+		Track:    track{Segment: trackSegment{Points: points}},
 	}
 
 	return result, nil
@@ -436,10 +449,14 @@ func readTrackPoint(input io.Reader) (trackPoint, error) {
 		return trackPoint{}, r.err
 	}
 
-	t := time.Unix(timestamp/1000, timestamp%1000*1000)
-	point.Time = rfc3339Time{t.UTC()}
+	point.Time = timestampToTime(timestamp)
 
 	return point, nil
+}
+
+func timestampToTime(timestamp int64) rfc3339Time {
+	t := time.Unix(timestamp/1000, timestamp%1000*1000)
+	return rfc3339Time{t.UTC()}
 }
 
 func downloadAllSessions(ctx context.Context, user *user) ([]*gpx, error) {
@@ -484,7 +501,8 @@ func archive(filename string, sessions []*gpx) (err error) {
 	defer checkedClose(zw, &err)
 
 	for _, session := range sessions {
-		filename := fmt.Sprintf("%s.gpx", session.ID)
+		time := session.Metadata.Time.Format("20060102_1504")
+		filename := fmt.Sprintf("runtastic_%s_Running.gpx", time)
 		w, err := zw.Create(filename)
 
 		if err != nil {
