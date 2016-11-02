@@ -83,7 +83,6 @@ type activities struct {
 
 type session struct {
 	ID                sessionID `json:"id"`
-	DeletedAt         string    `json:"deletedAt"`
 	GPSTraceAvailable string    `json:"gpsTraceAvailable"`
 }
 
@@ -282,7 +281,7 @@ func getSessions(ctx context.Context, user *user) ([]sessionID, error) {
 			}
 
 			for _, session := range data.Sessions {
-				if session.DeletedAt != "" {
+				if session.GPSTraceAvailable == "" {
 					continue
 				}
 
