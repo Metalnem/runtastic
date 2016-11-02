@@ -103,7 +103,7 @@ type sessionData struct {
 
 type gpx struct {
 	ID       sessionID `xml:"-"`
-	XMLName  xml.Name  `xml:"gpx"`
+	XMLName  xml.Name  `xml:"http://www.topografix.com/GPX/1/1 gpx"`
 	Version  float32   `xml:"version,attr"`
 	Creator  string    `xml:"creator,attr"`
 	Metadata metadata
