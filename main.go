@@ -32,6 +32,7 @@ const (
 	baseHubsURL = "https://hubs.runtastic.com"
 
 	cookieAppSession = "_runtastic_appws_session"
+	httpTimeout      = 5 * time.Second
 
 	headerAccept             = "Accept"
 	headerAppKey             = "X-App-Key"
@@ -43,10 +44,6 @@ const (
 
 	outputFormat = "2006-01-02 15.04.05"
 	timeFormat   = "2006-01-02 15:04:05"
-
-	httpTimeout  = 5 * time.Second
-	retryTimeout = 2 * time.Second
-	totalTimeout = 15 * time.Second
 )
 
 var (
