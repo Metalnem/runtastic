@@ -102,13 +102,15 @@ type sessionData struct {
 }
 
 type gpx struct {
-	ID          sessionID    `xml:"-"`
-	XMLName     xml.Name     `xml:"http://www.topografix.com/GPX/1/1 gpx"`
-	Version     float32      `xml:"version,attr"`
-	Creator     string       `xml:"creator,attr"`
-	StartTime   rfc3339Time  `xml:"metadata>time"`
-	EndTime     time.Time    `xml:"-"`
-	TrackPoints []trackPoint `xml:"trk>trkseg>trkpt"`
+	ID             sessionID    `xml:"-"`
+	XMLName        xml.Name     `xml:"http://www.topografix.com/GPX/1/1 gpx"`
+	XSIName        string       `xml:"xmlns:xsi,attr"`
+	SchemaLocation string       `xml:"xsi:schemaLocation,attr"`
+	Version        float32      `xml:"version,attr"`
+	Creator        string       `xml:"creator,attr"`
+	StartTime      rfc3339Time  `xml:"metadata>time"`
+	EndTime        time.Time    `xml:"-"`
+	TrackPoints    []trackPoint `xml:"trk>trkseg>trkpt"`
 }
 
 type trackPoint struct {
@@ -414,12 +416,14 @@ func parseSessionData(data *sessionData) (*gpx, error) {
 	}
 
 	result := &gpx{
-		ID:          sessionID(data.RunSessions.ID),
-		Version:     1.1,
-		Creator:     "Runtastic Archiver, https://github.com/Metalnem/runtastic",
-		StartTime:   rfc3339Time{timestampToTime(startTime).UTC()},
-		EndTime:     timestampToTime(endTime),
-		TrackPoints: points,
+		ID:             sessionID(data.RunSessions.ID),
+		XSIName:        "http://www.w3.org/2001/XMLSchema-instance",
+		SchemaLocation: "http://www.topografix.com/GPX/1/1",
+		Version:        1.1,
+		Creator:        "Runtastic Archiver, https://github.com/Metalnem/runtastic",
+		StartTime:      rfc3339Time{timestampToTime(startTime).UTC()},
+		EndTime:        timestampToTime(endTime),
+		TrackPoints:    points,
 	}
 
 	return result, nil
