@@ -34,13 +34,11 @@ const (
 	cookieAppSession = "_runtastic_appws_session"
 	httpTimeout      = 5 * time.Second
 
-	headerAccept             = "Accept"
-	headerAppKey             = "X-App-Key"
-	headerAppVersion         = "X-App-Version"
-	headerAuthToken          = "X-Auth-Token"
-	headerContentDisposition = "Content-Disposition"
-	headerContentType        = "Content-Type"
-	headerDate               = "X-Date"
+	headerAppKey      = "X-App-Key"
+	headerAppVersion  = "X-App-Version"
+	headerAuthToken   = "X-Auth-Token"
+	headerContentType = "Content-Type"
+	headerDate        = "X-Date"
 
 	outputFormat = "2006-01-02 15.04.05"
 	timeFormat   = "2006-01-02 15:04:05"
