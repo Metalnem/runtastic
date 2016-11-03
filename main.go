@@ -28,11 +28,9 @@ const (
 	appSecret  = "T68bA6dHk2ayW1Y39BQdEnUmGqM8Zq1SFZ3kNas3KYDjp471dJNXLcoYWsDBd1mH"
 	appVersion = "6.9.2"
 
-	baseAppURL  = "https://appws.runtastic.com"
-	baseHubsURL = "https://hubs.runtastic.com"
-
-	cookieAppSession = "_runtastic_appws_session"
-	httpTimeout      = 5 * time.Second
+	baseURL       = "https://appws.runtastic.com"
+	httpTimeout   = 5 * time.Second
+	sessionCookie = "_runtastic_appws_session"
 
 	headerAppKey      = "X-App-Key"
 	headerAppVersion  = "X-App-Version"
@@ -40,8 +38,8 @@ const (
 	headerContentType = "Content-Type"
 	headerDate        = "X-Date"
 
-	outputFormat = "2006-01-02 15.04.05"
-	timeFormat   = "2006-01-02 15:04:05"
+	filenameTimeFormat = "2006-01-02 15.04.05"
+	headerTimeFormat   = "2006-01-02 15:04:05"
 )
 
 var (
@@ -142,7 +140,7 @@ func checkedClose(c io.Closer, err *error) {
 }
 
 func buildAuthToken(t time.Time) string {
-	s := fmt.Sprintf("--%s--%s--%s--", appKey, appSecret, t.Format(timeFormat))
+	s := fmt.Sprintf("--%s--%s--%s--", appKey, appSecret, t.Format(headerTimeFormat))
 	hash := sha1.Sum([]byte(s))
 
 	return hex.EncodeToString(hash[:])
@@ -156,7 +154,7 @@ func setHeaders(header http.Header) {
 	header.Set(headerAppKey, appKey)
 	header.Set(headerAppVersion, appVersion)
 	header.Set(headerAuthToken, authToken)
-	header.Set(headerDate, t.Format(timeFormat))
+	header.Set(headerDate, t.Format(headerTimeFormat))
 }
 
 func getCredentials() (string, string, error) {
@@ -192,7 +190,7 @@ func login(ctx context.Context, email, password string) (*user, error) {
 	}
 
 	body := bytes.NewReader(b)
-	req, err := http.NewRequest(http.MethodPost, baseAppURL+"/webapps/services/auth/login", body)
+	req, err := http.NewRequest(http.MethodPost, baseURL+"/webapps/services/auth/login", body)
 
 	if err != nil {
 		return nil, err
@@ -226,7 +224,7 @@ func login(ctx context.Context, email, password string) (*user, error) {
 	}
 
 	for _, cookie := range resp.Cookies() {
-		if cookie.Name == cookieAppSession {
+		if cookie.Name == sessionCookie {
 			data.SessionID = cookie.Value
 		}
 	}
@@ -247,7 +245,7 @@ func getSessions(ctx context.Context, user *user) ([]sessionID, error) {
 			newCtx, cancel := context.WithTimeout(ctx, httpTimeout)
 			defer cancel()
 
-			url := baseAppURL + "/webapps/services/runsessions/v3/sync?access_token=" + user.AccessToken
+			url := baseURL + "/webapps/services/runsessions/v3/sync?access_token=" + user.AccessToken
 			body := bytes.NewReader([]byte(fmt.Sprintf("{\"syncedUntil\":\"%s\"}", syncedUntil)))
 			req, err := http.NewRequest(http.MethodPost, url, body)
 
@@ -256,7 +254,7 @@ func getSessions(ctx context.Context, user *user) ([]sessionID, error) {
 			}
 
 			setHeaders(req.Header)
-			req.AddCookie(&http.Cookie{Name: cookieAppSession, Value: user.SessionID})
+			req.AddCookie(&http.Cookie{Name: sessionCookie, Value: user.SessionID})
 
 			client := new(http.Client)
 			resp, err := client.Do(req.WithContext(newCtx))
@@ -323,7 +321,7 @@ func downloadSessionData(ctx context.Context, user *user, id sessionID) (*sessio
 	ctx, cancel := context.WithTimeout(ctx, httpTimeout)
 	defer cancel()
 
-	url := fmt.Sprintf("%s/webapps/services/runsessions/v2/%s/details?access_token=%s", baseAppURL, id, user.AccessToken)
+	url := fmt.Sprintf("%s/webapps/services/runsessions/v2/%s/details?access_token=%s", baseURL, id, user.AccessToken)
 	body := bytes.NewReader([]byte(`{"includeGpsTrace":{"include":"true","version":"1"}}`))
 	req, err := http.NewRequest(http.MethodPost, url, body)
 
@@ -332,13 +330,13 @@ func downloadSessionData(ctx context.Context, user *user, id sessionID) (*sessio
 	}
 
 	setHeaders(req.Header)
-	req.AddCookie(&http.Cookie{Name: cookieAppSession, Value: user.SessionID})
+	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: user.SessionID})
 
 	client := new(http.Client)
 	resp, err := client.Do(req.WithContext(ctx))
 
 	setHeaders(req.Header)
-	req.AddCookie(&http.Cookie{Name: cookieAppSession, Value: user.SessionID})
+	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: user.SessionID})
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to download session data for session %s", id)
@@ -541,7 +539,7 @@ func main() {
 		Error.Fatal(err)
 	}
 
-	filename := fmt.Sprintf("Runtastic %s.zip", time.Now().Format(outputFormat))
+	filename := fmt.Sprintf("Runtastic %s.zip", time.Now().Format(filenameTimeFormat))
 
 	if err = archive(filename, sessions); err != nil {
 		Error.Fatal(err)
