@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/pkg/errors"
@@ -31,8 +30,9 @@ const (
 )
 
 var (
-	errAuthenticationFailed = errors.New("Invalid email address or password")
-	errInvalidLoginResponse = errors.New("Invalid login response from server")
+	errAuthenticationFailed      = errors.New("Invalid email address or password")
+	errInvalidLoginResponse      = errors.New("Invalid login response from server")
+	errInvalidActivitiesResponse = errors.New("Invalid activity list response from server")
 )
 
 // UserID is unique user identifier.
@@ -55,11 +55,11 @@ type loginRequest struct {
 }
 
 type activitiesResponse struct {
-	SyncedUntil string `json:"syncedUntil"`
-	HasMore     string `json:"moreItemsAvailable"`
+	SyncedUntil string  `json:"syncedUntil"`
+	HasMore     boolean `json:"moreItemsAvailable"`
 	Sessions    []struct {
 		ID       ActivityID `json:"id"`
-		HasTrace string     `json:"gpsTraceAvailable"`
+		HasTrace boolean    `json:"gpsTraceAvailable"`
 	} `json:"sessions"`
 }
 
@@ -179,16 +179,12 @@ func GetActivities(ctx context.Context, session *Session) ([]ActivityID, error) 
 			decoder := json.NewDecoder(resp.Body)
 
 			if err = decoder.Decode(&data); err != nil {
-				return errors.WithMessage(err, "Invalid activity list response from server")
+				return errors.WithMessage(err, errInvalidActivitiesResponse.Error())
 			}
 
 			for _, session := range data.Sessions {
-				if session.HasTrace == "" {
-					continue
-				}
-
 				var hasTrace bool
-				hasTrace, err = strconv.ParseBool(session.HasTrace)
+				hasTrace, err = session.HasTrace.Bool()
 
 				if err != nil {
 					return err
@@ -206,7 +202,7 @@ func GetActivities(ctx context.Context, session *Session) ([]ActivityID, error) 
 
 			syncedUntil = data.SyncedUntil
 
-			if hasMore, err = strconv.ParseBool(data.HasMore); err != nil {
+			if hasMore, err = data.HasMore.Bool(); err != nil {
 				return err
 			}
 

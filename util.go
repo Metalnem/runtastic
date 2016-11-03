@@ -3,11 +3,22 @@ package main
 import (
 	"encoding/binary"
 	"io"
+	"strconv"
 )
+
+type boolean string
 
 type reader struct {
 	io.Reader
 	err error
+}
+
+func (b boolean) Bool() (bool, error) {
+	if b == "" {
+		return false, nil
+	}
+
+	return strconv.ParseBool(string(b))
 }
 
 func (r *reader) read(data interface{}) {
