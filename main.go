@@ -4,18 +4,14 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
-	"encoding/base64"
-	"encoding/binary"
 	"encoding/json"
 	"encoding/xml"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -37,17 +33,6 @@ var (
 	Error = log.New(os.Stderr, "ERROR: ", log.Ldate|log.Ltime)
 )
 
-type sessionData struct {
-	RunSessions struct {
-		ID        string `json:"id"`
-		StartTime string `json:"startTime"`
-		EndTime   string `json:"endTime"`
-		GPSData   struct {
-			Trace string `json:"trace"`
-		} `json:"gpsData"`
-	} `json:"runSessions"`
-}
-
 type gpx struct {
 	ID             ActivityID   `xml:"-"`
 	XMLName        xml.Name     `xml:"http://www.topografix.com/GPX/1/1 gpx"`
@@ -57,24 +42,7 @@ type gpx struct {
 	Creator        string       `xml:"creator,attr"`
 	StartTime      rfc3339Time  `xml:"metadata>time"`
 	EndTime        time.Time    `xml:"-"`
-	TrackPoints    []trackPoint `xml:"trk>trkseg>trkpt"`
-}
-
-type trackPoint struct {
-	Longitude float32     `xml:"lon,attr"`
-	Latitude  float32     `xml:"lat,attr"`
-	Elevation float32     `xml:"ele,omitempty"`
-	Time      rfc3339Time `xml:"time,omitempty"`
-}
-
-type rfc3339Time struct {
-	time.Time
-}
-
-// MarshalXML is a custom XML marshaller that formats time using RFC3339 format.
-func (t rfc3339Time) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
-	e.EncodeElement(t.Format(time.RFC3339), start)
-	return nil
+	TrackPoints    []TrackPoint `xml:"trk>trkseg>trkpt"`
 }
 
 func getCredentials() (string, string, error) {
@@ -95,11 +63,11 @@ func getCredentials() (string, string, error) {
 	return "", "", errMissingCredentials
 }
 
-func downloadSessionData(ctx context.Context, user *Session, id ActivityID) (*sessionData, error) {
+func downloadSessionData(ctx context.Context, session *Session, id ActivityID) (*activityResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, httpTimeout)
 	defer cancel()
 
-	url := fmt.Sprintf("%s/webapps/services/runsessions/v2/%s/details?access_token=%s", baseURL, id, user.AccessToken)
+	url := fmt.Sprintf("%s/webapps/services/runsessions/v2/%s/details?access_token=%s", baseURL, id, session.AccessToken)
 	body := bytes.NewReader([]byte(`{"includeGpsTrace":{"include":"true","version":"1"}}`))
 	req, err := http.NewRequest(http.MethodPost, url, body)
 
@@ -108,13 +76,13 @@ func downloadSessionData(ctx context.Context, user *Session, id ActivityID) (*se
 	}
 
 	setHeaders(req.Header)
-	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: user.Cookie})
+	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: session.Cookie})
 
 	client := new(http.Client)
 	resp, err := client.Do(req.WithContext(ctx))
 
 	setHeaders(req.Header)
-	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: user.Cookie})
+	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: session.Cookie})
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to download session data for session %s", id)
@@ -126,7 +94,7 @@ func downloadSessionData(ctx context.Context, user *Session, id ActivityID) (*se
 		return nil, errors.Wrapf(err, "Failed to download session data for session %s", id)
 	}
 
-	var data sessionData
+	var data activityResponse
 	decoder := json.NewDecoder(resp.Body)
 
 	if err = decoder.Decode(&data); err != nil {
@@ -140,37 +108,16 @@ func downloadSessionData(ctx context.Context, user *Session, id ActivityID) (*se
 	return &data, nil
 }
 
-func parseSessionData(data *sessionData) (*gpx, error) {
-	encoded := strings.Split(data.RunSessions.GPSData.Trace, "\\n")
-	var decoded []byte
+// TODO: Delete me.
+func timestampToTime(timestamp int64) time.Time {
+	return time.Unix(timestamp/1000, timestamp%1000*1000)
+}
 
-	for _, line := range encoded {
-		b, err := base64.StdEncoding.DecodeString(line)
+func parseSessionData(data *activityResponse) (*gpx, error) {
+	points, err := parseGPSTrace(data.RunSessions.GPSData.Trace)
 
-		if err != nil {
-			return nil, errors.Wrapf(err, "GPS trace for session %s is not a valid Base64 string", data.RunSessions.ID)
-		}
-
-		decoded = append(decoded, b...)
-	}
-
-	buf := bytes.NewBuffer(decoded)
-	var size int32
-
-	if err := binary.Read(buf, binary.BigEndian, &size); err != nil {
-		return nil, errors.Wrapf(err, "GPS trace for session %s is invalid", data.RunSessions.ID)
-	}
-
-	var points []trackPoint
-
-	for i := 0; i < int(size); i++ {
-		point, err := readTrackPoint(buf)
-
-		if err != nil {
-			return nil, errors.Wrapf(err, "GPS trace for session %s is invalid", data.RunSessions.ID)
-		}
-
-		points = append(points, point)
+	if err != nil {
+		return nil, err
 	}
 
 	startTime, err := strconv.ParseInt(data.RunSessions.StartTime, 10, 64)
@@ -199,33 +146,7 @@ func parseSessionData(data *sessionData) (*gpx, error) {
 	return result, nil
 }
 
-func readTrackPoint(input io.Reader) (trackPoint, error) {
-	var point trackPoint
-	var timestamp int64
-
-	unknown := make([]byte, 18)
-	r := reader{input, nil}
-
-	r.read(&timestamp)
-	r.read(&point.Longitude)
-	r.read(&point.Latitude)
-	r.read(&point.Elevation)
-	r.read(unknown)
-
-	if r.err != nil {
-		return trackPoint{}, r.err
-	}
-
-	time := timestampToTime(timestamp).UTC()
-	point.Time = rfc3339Time{time}
-
-	return point, nil
-}
-
-func timestampToTime(timestamp int64) time.Time {
-	return time.Unix(timestamp/1000, timestamp%1000*1000)
-}
-
+// TODO: Rename me.
 func downloadAllSessions(ctx context.Context, user *Session) ([]*gpx, error) {
 	sessions, err := GetActivities(ctx, user)
 

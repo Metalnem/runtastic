@@ -4,10 +4,14 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha1"
+	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -33,6 +37,7 @@ var (
 	errAuthenticationFailed      = errors.New("Invalid email address or password")
 	errInvalidLoginResponse      = errors.New("Invalid login response from server")
 	errInvalidActivitiesResponse = errors.New("Invalid activity list response from server")
+	errInvalidGPSTrace           = errors.New("Invalid GPS trace data")
 )
 
 // UserID is unique user identifier.
@@ -48,19 +53,38 @@ type Session struct {
 	Cookie      string
 }
 
+// TrackPoint represents single GPS data point.
+type TrackPoint struct {
+	Longitude float32     `xml:"lon,attr"`
+	Latitude  float32     `xml:"lat,attr"`
+	Elevation float32     `xml:"ele,omitempty"`
+	Time      rfc3339Time `xml:"time,omitempty"`
+}
+
 type loginRequest struct {
-	Email      string   `json:"email"`
-	Attributes []string `json:"additionalAttributes"`
-	Password   string   `json:"password"`
+	Email                string   `json:"email"`
+	AdditionalAttributes []string `json:"additionalAttributes"`
+	Password             string   `json:"password"`
 }
 
 type activitiesResponse struct {
-	SyncedUntil string  `json:"syncedUntil"`
-	HasMore     boolean `json:"moreItemsAvailable"`
-	Sessions    []struct {
-		ID       ActivityID `json:"id"`
-		HasTrace boolean    `json:"gpsTraceAvailable"`
+	SyncedUntil        string  `json:"syncedUntil"`
+	MoreItemsAvailable boolean `json:"moreItemsAvailable"`
+	Sessions           []struct {
+		ID                ActivityID `json:"id"`
+		GPSTraceAvailable boolean    `json:"gpsTraceAvailable"`
 	} `json:"sessions"`
+}
+
+type activityResponse struct {
+	RunSessions struct {
+		ID        ActivityID `json:"id"`
+		StartTime string     `json:"startTime"`
+		EndTime   string     `json:"endTime"`
+		GPSData   struct {
+			Trace string `json:"trace"`
+		} `json:"gpsData"`
+	} `json:"runSessions"`
 }
 
 func setHeaders(header http.Header) {
@@ -83,9 +107,9 @@ func Login(ctx context.Context, email, password string) (*Session, error) {
 	defer cancel()
 
 	b, err := json.Marshal(loginRequest{
-		Email:      email,
-		Attributes: []string{"accessToken"},
-		Password:   password,
+		Email:                email,
+		AdditionalAttributes: []string{"accessToken"},
+		Password:             password,
 	})
 
 	if err != nil {
@@ -184,7 +208,7 @@ func GetActivities(ctx context.Context, session *Session) ([]ActivityID, error) 
 
 			for _, session := range data.Sessions {
 				var hasTrace bool
-				hasTrace, err = session.HasTrace.Bool()
+				hasTrace, err = session.GPSTraceAvailable.Bool()
 
 				if err != nil {
 					return err
@@ -202,7 +226,7 @@ func GetActivities(ctx context.Context, session *Session) ([]ActivityID, error) 
 
 			syncedUntil = data.SyncedUntil
 
-			if hasMore, err = data.HasMore.Bool(); err != nil {
+			if hasMore, err = data.MoreItemsAvailable.Bool(); err != nil {
 				return err
 			}
 
@@ -215,4 +239,63 @@ func GetActivities(ctx context.Context, session *Session) ([]ActivityID, error) 
 	}
 
 	return activities, nil
+}
+
+func parseTrackPoint(input io.Reader) (TrackPoint, error) {
+	var point TrackPoint
+	var t timestamp
+
+	unknown := make([]byte, 18)
+	r := reader{input, nil}
+
+	r.read(&t)
+	r.read(&point.Longitude)
+	r.read(&point.Latitude)
+	r.read(&point.Elevation)
+	r.read(unknown)
+
+	if r.err != nil {
+		return TrackPoint{}, r.err
+	}
+
+	time := t.toUtcTime()
+	point.Time = rfc3339Time{time}
+
+	return point, nil
+}
+
+func parseGPSTrace(trace string) ([]TrackPoint, error) {
+	encoded := strings.Split(trace, "\\n")
+	var decoded []byte
+
+	for _, line := range encoded {
+		b, err := base64.StdEncoding.DecodeString(line)
+
+		if err != nil {
+			return nil, errInvalidGPSTrace
+		}
+
+		decoded = append(decoded, b...)
+	}
+
+	buf := bytes.NewBuffer(decoded)
+	var size int32
+
+	if err := binary.Read(buf, binary.BigEndian, &size); err != nil {
+		return nil, errInvalidGPSTrace
+	}
+
+	var points []TrackPoint
+
+	for i := 0; i < int(size); i++ {
+		point, err := parseTrackPoint(buf)
+
+		if err != nil {
+			return nil, errors.Wrap(err, errInvalidGPSTrace.Error())
+		}
+
+		points = append(points, point)
+	}
+
+	return points, nil
 }
