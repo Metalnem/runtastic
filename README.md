@@ -13,8 +13,6 @@ $ ./runtastic
 Usage of ./runtastic:
   -email string
     	Email (required)
-  -format string
-    	Optional export format (gpx, tcx or kml) (default "gpx")
   -password string
     	Password (required)
 ```
@@ -22,5 +20,5 @@ Usage of ./runtastic:
 ## Example
 
 ```
-$ ./runtastic -email user@example.org -password secret123 -format gpx
+$ ./runtastic -email user@example.org -password secret123
 ```
