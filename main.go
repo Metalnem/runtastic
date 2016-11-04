@@ -20,7 +20,7 @@ var (
 	password = flag.String("password", "", "Password (required)")
 
 	errMissingCredentials = errors.New("Missing email address or password")
-	errNoSessions         = errors.New("There are no activities to backup")
+	errNoActivities       = errors.New("There are no activities to backup")
 
 	// Info is used for logging information.
 	Info = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime)
@@ -74,36 +74,7 @@ func parseSessionData(data *Activity) *gpx {
 	return result
 }
 
-// TODO: Rename me.
-func downloadAllSessions(ctx context.Context, user *Session) ([]*gpx, error) {
-	sessions, err := GetActivityIDs(ctx, user)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if len(sessions) == 0 {
-		return nil, errNoSessions
-	}
-
-	var data []*gpx
-
-	for _, session := range sessions {
-		gpx, err := GetActivity(ctx, user, session)
-
-		if err != nil {
-			return nil, err
-		}
-
-		Info.Printf("Session %s downloaded\n", session)
-
-		data = append(data, parseSessionData(gpx))
-	}
-
-	return data, nil
-}
-
-func archive(filename string, sessions []*gpx) (err error) {
+func archive(filename string, sessions []*Activity) (err error) {
 	file, err := os.Create(filename)
 
 	if err != nil {
@@ -130,7 +101,7 @@ func archive(filename string, sessions []*gpx) (err error) {
 		encoder := xml.NewEncoder(w)
 		encoder.Indent("", "  ")
 
-		if err = encoder.Encode(session); err != nil {
+		if err = encoder.Encode(parseSessionData(session)); err != nil {
 			return errors.Wrapf(err, "Failed to save session %s", filename)
 		}
 	}
@@ -154,7 +125,7 @@ func main() {
 		Error.Fatal(err)
 	}
 
-	sessions, err := downloadAllSessions(context.Background(), user)
+	sessions, err := GetActivities(context.Background(), user)
 
 	if err != nil {
 		Error.Fatal(err)

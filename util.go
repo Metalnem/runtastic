@@ -60,7 +60,6 @@ func (r *reader) read(data interface{}) {
 	}
 }
 
-// MarshalXML is a custom XML marshaller that formats time using RFC3339 format.
 func (t rfc3339Time) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	e.EncodeElement(t.Format(time.RFC3339), start)
 	return nil
