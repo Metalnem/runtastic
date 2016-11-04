@@ -8,7 +8,8 @@ import (
 	"time"
 )
 
-type boolean string
+type jsonBool string
+type jsonTime string
 type timestamp int64
 
 type reader struct {
@@ -20,12 +21,22 @@ type rfc3339Time struct {
 	time.Time
 }
 
-func (b boolean) Bool() (bool, error) {
+func (b jsonBool) Bool() (bool, error) {
 	if b == "" {
 		return false, nil
 	}
 
 	return strconv.ParseBool(string(b))
+}
+
+func (t jsonTime) Time() (time.Time, error) {
+	tx, err := strconv.ParseInt(string(t), 10, 64)
+
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return timestamp(tx).toUtcTime(), nil
 }
 
 func (t timestamp) toLocalTime() time.Time {

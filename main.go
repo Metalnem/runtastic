@@ -11,7 +11,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/pkg/errors"
@@ -63,7 +62,8 @@ func getCredentials() (string, string, error) {
 	return "", "", errMissingCredentials
 }
 
-func downloadSessionData(ctx context.Context, session *Session, id ActivityID) (*activityResponse, error) {
+// GetActivity downloads GPS trace of an activity with given ID.
+func GetActivity(ctx context.Context, session *Session, id ActivityID) (*Activity, error) {
 	ctx, cancel := context.WithTimeout(ctx, httpTimeout)
 	defer cancel()
 
@@ -85,70 +85,68 @@ func downloadSessionData(ctx context.Context, session *Session, id ActivityID) (
 	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: session.Cookie})
 
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to download session data for session %s", id)
+		return nil, errors.Wrapf(err, "Failed to download data for activity %s", id)
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.Wrapf(err, "Failed to download session data for session %s", id)
+		return nil, errors.Wrapf(err, "Failed to download data for activity %s", id)
 	}
 
 	var data activityResponse
 	decoder := json.NewDecoder(resp.Body)
 
 	if err = decoder.Decode(&data); err != nil {
-		return nil, errors.Wrapf(err, "Invalid session data received from server for session %s", id)
+		return nil, errors.Wrapf(err, "Invalid data received from server for activity %s", id)
 	}
 
-	if data.RunSessions.ID == "" || data.RunSessions.StartTime == "" || data.RunSessions.GPSData.Trace == "" {
-		return nil, errors.Wrapf(err, "Incomplete session data received from server for session %s", id)
+	startTime, err := data.RunSessions.StartTime.Time()
+
+	if err != nil {
+		return nil, errors.Wrapf(err, "Invalid data received from server for activity %s", id)
 	}
 
-	return &data, nil
-}
+	endTime, err := data.RunSessions.EndTime.Time()
 
-// TODO: Delete me.
-func timestampToTime(timestamp int64) time.Time {
-	return time.Unix(timestamp/1000, timestamp%1000*1000)
-}
+	if err != nil {
+		return nil, errors.Wrapf(err, "Invalid data received from server for activity %s", id)
+	}
 
-func parseSessionData(data *activityResponse) (*gpx, error) {
 	points, err := parseGPSTrace(data.RunSessions.GPSData.Trace)
 
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "Invalid data received from server for activity %s", id)
 	}
 
-	startTime, err := strconv.ParseInt(data.RunSessions.StartTime, 10, 64)
-
-	if err != nil {
-		return nil, errors.Wrapf(err, "Invalid start time %s for session %s", data.RunSessions.StartTime, data.RunSessions.ID)
+	activity := Activity{
+		ID:        id,
+		StartTime: startTime,
+		EndTime:   endTime,
+		GPSTrace:  points,
 	}
 
-	endTime, err := strconv.ParseInt(data.RunSessions.EndTime, 10, 64)
+	return &activity, nil
+}
 
-	if err != nil {
-		return nil, errors.Wrapf(err, "Invalid end time %s for session %s", data.RunSessions.EndTime, data.RunSessions.ID)
-	}
-
+func parseSessionData(data *Activity) *gpx {
 	result := &gpx{
-		ID:             ActivityID(data.RunSessions.ID),
+		ID:             data.ID,
 		XSIName:        "http://www.w3.org/2001/XMLSchema-instance",
 		SchemaLocation: "http://www.topografix.com/GPX/1/1",
 		Version:        1.1,
 		Creator:        "Runtastic Archiver, https://github.com/Metalnem/runtastic",
-		StartTime:      rfc3339Time{timestampToTime(startTime).UTC()},
-		EndTime:        timestampToTime(endTime),
-		TrackPoints:    points,
+		StartTime:      rfc3339Time{data.StartTime},
+		EndTime:        data.EndTime.Local(),
+		TrackPoints:    data.GPSTrace,
 	}
 
-	return result, nil
+	return result
 }
 
 // TODO: Rename me.
 func downloadAllSessions(ctx context.Context, user *Session) ([]*gpx, error) {
-	sessions, err := GetActivities(ctx, user)
+	sessions, err := GetActivityIDs(ctx, user)
 
 	if err != nil {
 		return nil, err
@@ -161,13 +159,7 @@ func downloadAllSessions(ctx context.Context, user *Session) ([]*gpx, error) {
 	var data []*gpx
 
 	for _, session := range sessions {
-		sessionData, err := downloadSessionData(ctx, user, session)
-
-		if err != nil {
-			return nil, err
-		}
-
-		gpx, err := parseSessionData(sessionData)
+		gpx, err := GetActivity(ctx, user, session)
 
 		if err != nil {
 			return nil, err
@@ -175,7 +167,7 @@ func downloadAllSessions(ctx context.Context, user *Session) ([]*gpx, error) {
 
 		Info.Printf("Session %s downloaded\n", session)
 
-		data = append(data, gpx)
+		data = append(data, parseSessionData(gpx))
 	}
 
 	return data, nil

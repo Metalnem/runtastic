@@ -38,6 +38,7 @@ var (
 	errInvalidLoginResponse      = errors.New("Invalid login response from server")
 	errInvalidActivitiesResponse = errors.New("Invalid activity list response from server")
 	errInvalidGPSTrace           = errors.New("Invalid GPS trace data")
+	errInvalidTime               = errors.New("Invalid time")
 )
 
 // UserID is unique user identifier.
@@ -61,6 +62,14 @@ type TrackPoint struct {
 	Time      rfc3339Time `xml:"time,omitempty"`
 }
 
+// Activity contains metadata and GPS trace for single activity.
+type Activity struct {
+	ID        ActivityID
+	StartTime time.Time
+	EndTime   time.Time
+	GPSTrace  []TrackPoint
+}
+
 type loginRequest struct {
 	Email                string   `json:"email"`
 	AdditionalAttributes []string `json:"additionalAttributes"`
@@ -68,19 +77,19 @@ type loginRequest struct {
 }
 
 type activitiesResponse struct {
-	SyncedUntil        string  `json:"syncedUntil"`
-	MoreItemsAvailable boolean `json:"moreItemsAvailable"`
+	SyncedUntil        string   `json:"syncedUntil"`
+	MoreItemsAvailable jsonBool `json:"moreItemsAvailable"`
 	Sessions           []struct {
 		ID                ActivityID `json:"id"`
-		GPSTraceAvailable boolean    `json:"gpsTraceAvailable"`
+		GPSTraceAvailable jsonBool   `json:"gpsTraceAvailable"`
 	} `json:"sessions"`
 }
 
 type activityResponse struct {
 	RunSessions struct {
 		ID        ActivityID `json:"id"`
-		StartTime string     `json:"startTime"`
-		EndTime   string     `json:"endTime"`
+		StartTime jsonTime   `json:"startTime"`
+		EndTime   jsonTime   `json:"endTime"`
 		GPSData   struct {
 			Trace string `json:"trace"`
 		} `json:"gpsData"`
@@ -163,8 +172,8 @@ func Login(ctx context.Context, email, password string) (*Session, error) {
 	return &data, nil
 }
 
-// GetActivities returns list of all activities that have GPS trace available.
-func GetActivities(ctx context.Context, session *Session) ([]ActivityID, error) {
+// GetActivityIDs returns list of IDs of all activities that have GPS trace available.
+func GetActivityIDs(ctx context.Context, session *Session) ([]ActivityID, error) {
 	var activities []ActivityID
 
 	syncedUntil := "0"
