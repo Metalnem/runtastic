@@ -372,10 +372,6 @@ func GetActivities(ctx context.Context, session *Session) ([]*Activity, error) {
 		return nil, err
 	}
 
-	if len(ids) == 0 {
-		return nil, errNoActivities
-	}
-
 	var activities []*Activity
 
 	for _, id := range ids {

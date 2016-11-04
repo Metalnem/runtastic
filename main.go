@@ -13,8 +13,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const filenameTimeFormat = "2006-01-02 15.04.05"
-
 var (
 	email    = flag.String("email", "", "Email (required)")
 	password = flag.String("password", "", "Password (required)")
@@ -30,14 +28,12 @@ var (
 )
 
 type gpx struct {
-	ID             ActivityID   `xml:"-"`
-	XMLName        xml.Name     `xml:"http://www.topografix.com/GPX/1/1 gpx"`
-	XSIName        string       `xml:"xmlns:xsi,attr"`
+	Name           xml.Name     `xml:"http://www.topografix.com/GPX/1/1 gpx"`
+	SchemaInstance string       `xml:"xmlns:xsi,attr"`
 	SchemaLocation string       `xml:"xsi:schemaLocation,attr"`
 	Version        float32      `xml:"version,attr"`
 	Creator        string       `xml:"creator,attr"`
-	StartTime      rfc3339Time  `xml:"metadata>time"`
-	EndTime        time.Time    `xml:"-"`
+	Time           rfc3339Time  `xml:"metadata>time"`
 	TrackPoints    []TrackPoint `xml:"trk>trkseg>trkpt"`
 }
 
@@ -59,22 +55,12 @@ func getCredentials() (string, string, error) {
 	return "", "", errMissingCredentials
 }
 
-func parseSessionData(data *Activity) *gpx {
-	result := &gpx{
-		ID:             data.ID,
-		XSIName:        "http://www.w3.org/2001/XMLSchema-instance",
-		SchemaLocation: "http://www.topografix.com/GPX/1/1",
-		Version:        1.1,
-		Creator:        "Runtastic Archiver, https://github.com/Metalnem/runtastic",
-		StartTime:      rfc3339Time{data.StartTime},
-		EndTime:        data.EndTime.Local(),
-		TrackPoints:    data.GPSTrace,
-	}
-
-	return result
+func getFilename(t time.Time, ext string) string {
+	s := t.Local().Format("2006-01-02 15.04.05")
+	return fmt.Sprintf("Runtastic %s.%s", s, ext)
 }
 
-func archive(filename string, sessions []*Activity) (err error) {
+func archive(filename string, activities []*Activity) (err error) {
 	file, err := os.Create(filename)
 
 	if err != nil {
@@ -85,9 +71,8 @@ func archive(filename string, sessions []*Activity) (err error) {
 	zw := zip.NewWriter(file)
 	defer checkedClose(zw, &err)
 
-	for _, session := range sessions {
-		time := session.EndTime.Format("20060102_1504")
-		filename := fmt.Sprintf("runtastic_%s_Running.gpx", time)
+	for _, activity := range activities {
+		filename := getFilename(activity.EndTime, "gpx")
 		w, err := zw.Create(filename)
 
 		if err != nil {
@@ -95,14 +80,23 @@ func archive(filename string, sessions []*Activity) (err error) {
 		}
 
 		if _, err = fmt.Fprint(w, xml.Header); err != nil {
-			return errors.Wrapf(err, "Failed to save session %s", filename)
+			return errors.Wrapf(err, "Failed to save activity %s", filename)
 		}
 
 		encoder := xml.NewEncoder(w)
 		encoder.Indent("", "  ")
 
-		if err = encoder.Encode(parseSessionData(session)); err != nil {
-			return errors.Wrapf(err, "Failed to save session %s", filename)
+		data := gpx{
+			SchemaInstance: "http://www.w3.org/2001/XMLSchema-instance",
+			SchemaLocation: "http://www.topografix.com/GPX/1/1",
+			Version:        1.1,
+			Creator:        "Runtastic Archiver, https://github.com/Metalnem/runtastic",
+			Time:           rfc3339Time{activity.StartTime},
+			TrackPoints:    activity.GPSTrace,
+		}
+
+		if err = encoder.Encode(data); err != nil {
+			return errors.Wrapf(err, "Failed to save activity %s", filename)
 		}
 	}
 
@@ -125,19 +119,19 @@ func main() {
 		Error.Fatal(err)
 	}
 
-	sessions, err := GetActivities(context.Background(), user)
+	activities, err := GetActivities(context.Background(), user)
 
 	if err != nil {
 		Error.Fatal(err)
 	}
 
-	if len(sessions) == 0 {
-		Error.Fatal(err)
+	if len(activities) == 0 {
+		Error.Fatal(errNoActivities)
 	}
 
-	filename := fmt.Sprintf("Runtastic %s.zip", time.Now().Format(filenameTimeFormat))
+	filename := getFilename(time.Now(), "zip")
 
-	if err = archive(filename, sessions); err != nil {
+	if err = archive(filename, activities); err != nil {
 		Error.Fatal(err)
 	}
 
