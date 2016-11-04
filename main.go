@@ -28,7 +28,7 @@ var (
 )
 
 type gpx struct {
-	Name           xml.Name     `xml:"http://www.topografix.com/GPX/1/1 gpx"`
+	XMLName        xml.Name     `xml:"http://www.topografix.com/GPX/1/1 gpx"`
 	SchemaInstance string       `xml:"xmlns:xsi,attr"`
 	SchemaLocation string       `xml:"xsi:schemaLocation,attr"`
 	Version        float32      `xml:"version,attr"`
