@@ -2,14 +2,11 @@ package main
 
 import (
 	"archive/zip"
-	"bytes"
 	"context"
-	"encoding/json"
 	"encoding/xml"
 	"flag"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"time"
 
@@ -60,73 +57,6 @@ func getCredentials() (string, string, error) {
 	}
 
 	return "", "", errMissingCredentials
-}
-
-// GetActivity downloads GPS trace of an activity with given ID.
-func GetActivity(ctx context.Context, session *Session, id ActivityID) (*Activity, error) {
-	ctx, cancel := context.WithTimeout(ctx, httpTimeout)
-	defer cancel()
-
-	url := fmt.Sprintf("%s/webapps/services/runsessions/v2/%s/details?access_token=%s", baseURL, id, session.AccessToken)
-	body := bytes.NewReader([]byte(`{"includeGpsTrace":{"include":"true","version":"1"}}`))
-	req, err := http.NewRequest(http.MethodPost, url, body)
-
-	if err != nil {
-		return nil, err
-	}
-
-	setHeaders(req.Header)
-	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: session.Cookie})
-
-	client := new(http.Client)
-	resp, err := client.Do(req.WithContext(ctx))
-
-	setHeaders(req.Header)
-	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: session.Cookie})
-
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to download data for activity %s", id)
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, errors.Wrapf(err, "Failed to download data for activity %s", id)
-	}
-
-	var data activityResponse
-	decoder := json.NewDecoder(resp.Body)
-
-	if err = decoder.Decode(&data); err != nil {
-		return nil, errors.Wrapf(err, "Invalid data received from server for activity %s", id)
-	}
-
-	startTime, err := data.RunSessions.StartTime.Time()
-
-	if err != nil {
-		return nil, errors.Wrapf(err, "Invalid data received from server for activity %s", id)
-	}
-
-	endTime, err := data.RunSessions.EndTime.Time()
-
-	if err != nil {
-		return nil, errors.Wrapf(err, "Invalid data received from server for activity %s", id)
-	}
-
-	points, err := parseGPSTrace(data.RunSessions.GPSData.Trace)
-
-	if err != nil {
-		return nil, errors.Wrapf(err, "Invalid data received from server for activity %s", id)
-	}
-
-	activity := Activity{
-		ID:        id,
-		StartTime: startTime,
-		EndTime:   endTime,
-		GPSTrace:  points,
-	}
-
-	return &activity, nil
 }
 
 func parseSessionData(data *Activity) *gpx {

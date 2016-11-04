@@ -9,7 +9,7 @@ import (
 )
 
 type jsonBool string
-type jsonTime string
+type jsonTime time.Time
 type timestamp int64
 
 type reader struct {
@@ -29,14 +29,21 @@ func (b jsonBool) Bool() (bool, error) {
 	return strconv.ParseBool(string(b))
 }
 
-func (t jsonTime) Time() (time.Time, error) {
-	tx, err := strconv.ParseInt(string(t), 10, 64)
+func (t *jsonTime) UnmarshalJSON(b []byte) error {
+	s := string(b)
 
-	if err != nil {
-		return time.Time{}, err
+	if len(s) < 2 || s[0] != '"' || s[len(s)-1] != '"' {
+		return errInvalidTime
 	}
 
-	return timestamp(tx).toUtcTime(), nil
+	time, err := strconv.ParseInt(s[1:len(s)-1], 10, 64)
+
+	if err != nil {
+		return errInvalidTime
+	}
+
+	*t = jsonTime(timestamp(time).toUtcTime())
+	return nil
 }
 
 func (t timestamp) toLocalTime() time.Time {
