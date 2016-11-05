@@ -27,6 +27,13 @@ var (
 	Error = log.New(os.Stderr, "ERROR: ", log.Ldate|log.Ltime)
 )
 
+type trackPoint struct {
+	Longitude float32     `xml:"lon,attr"`
+	Latitude  float32     `xml:"lat,attr"`
+	Elevation float32     `xml:"ele,omitempty"`
+	Time      rfc3339Time `xml:"time,omitempty"`
+}
+
 type gpx struct {
 	XMLName        xml.Name     `xml:"http://www.topografix.com/GPX/1/1 gpx"`
 	SchemaInstance string       `xml:"xmlns:xsi,attr"`
@@ -34,7 +41,7 @@ type gpx struct {
 	Version        float32      `xml:"version,attr"`
 	Creator        string       `xml:"creator,attr"`
 	Time           rfc3339Time  `xml:"metadata>time"`
-	TrackPoints    []TrackPoint `xml:"trk>trkseg>trkpt"`
+	TrackPoints    []trackPoint `xml:"trk>trkseg>trkpt"`
 }
 
 func getCredentials() (string, string, error) {
@@ -83,8 +90,16 @@ func archive(filename string, activities []*Activity) (err error) {
 			return errors.Wrapf(err, "Failed to save activity %s", filename)
 		}
 
-		encoder := xml.NewEncoder(w)
-		encoder.Indent("", "  ")
+		var points []trackPoint
+
+		for _, point := range activity.GPSTrace {
+			points = append(points, trackPoint{
+				Longitude: point.Longitude,
+				Latitude:  point.Latitude,
+				Elevation: point.Elevation,
+				Time:      rfc3339Time{point.Time},
+			})
+		}
 
 		data := gpx{
 			SchemaInstance: "http://www.w3.org/2001/XMLSchema-instance",
@@ -92,8 +107,11 @@ func archive(filename string, activities []*Activity) (err error) {
 			Version:        1.1,
 			Creator:        "Runtastic Archiver, https://github.com/Metalnem/runtastic",
 			Time:           rfc3339Time{activity.StartTime},
-			TrackPoints:    activity.GPSTrace,
+			TrackPoints:    points,
 		}
+
+		encoder := xml.NewEncoder(w)
+		encoder.Indent("", "  ")
 
 		if err = encoder.Encode(data); err != nil {
 			return errors.Wrapf(err, "Failed to save activity %s", filename)

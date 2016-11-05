@@ -54,12 +54,17 @@ type Session struct {
 	Cookie      string
 }
 
-// TrackPoint represents single GPS data point.
-type TrackPoint struct {
-	Longitude float32     `xml:"lon,attr"`
-	Latitude  float32     `xml:"lat,attr"`
-	Elevation float32     `xml:"ele,omitempty"`
-	Time      rfc3339Time `xml:"time,omitempty"`
+// GPSPoint represents single GPS data point.
+type GPSPoint struct {
+	Longitude           float32
+	Latitude            float32
+	Elevation           float32
+	Time                time.Time
+	SpeedKPH            float32
+	TotalTimeMillis     int32
+	TotalDistanceMeters int32
+	ElevationGain       int16
+	ElevationLoss       int16
 }
 
 // Activity contains metadata and GPS trace for single activity.
@@ -67,7 +72,7 @@ type Activity struct {
 	ID        ActivityID
 	StartTime time.Time
 	EndTime   time.Time
-	GPSTrace  []TrackPoint
+	GPSTrace  []GPSPoint
 }
 
 type loginRequest struct {
@@ -250,30 +255,35 @@ func GetActivityIDs(ctx context.Context, session *Session) ([]ActivityID, error)
 	return activities, nil
 }
 
-func parseTrackPoint(input io.Reader) (TrackPoint, error) {
-	var point TrackPoint
+func parseTrackPoint(input io.Reader) (GPSPoint, error) {
+	var point GPSPoint
 	var t timestamp
 
-	unknown := make([]byte, 18)
 	r := reader{input, nil}
 
 	r.read(&t)
 	r.read(&point.Longitude)
 	r.read(&point.Latitude)
 	r.read(&point.Elevation)
-	r.read(unknown)
+
+	var unknown int16
+	r.read(&unknown)
+
+	r.read(&point.SpeedKPH)
+	r.read(&point.TotalTimeMillis)
+	r.read(&point.TotalDistanceMeters)
+	r.read(&point.ElevationGain)
+	r.read(&point.ElevationLoss)
 
 	if r.err != nil {
-		return TrackPoint{}, r.err
+		return GPSPoint{}, r.err
 	}
 
-	time := t.toUtcTime()
-	point.Time = rfc3339Time{time}
-
+	point.Time = t.toUtcTime()
 	return point, nil
 }
 
-func parseGPSTrace(trace string) ([]TrackPoint, error) {
+func parseGPSTrace(trace string) ([]GPSPoint, error) {
 	encoded := strings.Split(trace, "\\n")
 	var decoded []byte
 
@@ -294,7 +304,7 @@ func parseGPSTrace(trace string) ([]TrackPoint, error) {
 		return nil, errInvalidGPSTrace
 	}
 
-	var points []TrackPoint
+	var points []GPSPoint
 
 	for i := 0; i < int(size); i++ {
 		point, err := parseTrackPoint(buf)
