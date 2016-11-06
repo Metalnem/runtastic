@@ -379,14 +379,14 @@ func GetActivity(ctx context.Context, session *Session, id ActivityID) (*Activit
 }
 
 // GetActivities retrieves GPS traces for all available activities.
-func GetActivities(ctx context.Context, session *Session) ([]*Activity, error) {
+func GetActivities(ctx context.Context, session *Session) ([]Activity, error) {
 	ids, err := GetActivityIDs(ctx, session)
 
 	if err != nil {
 		return nil, err
 	}
 
-	var activities []*Activity
+	var activities []Activity
 
 	for _, id := range ids {
 		activity, err := GetActivity(ctx, session, id)
@@ -395,7 +395,7 @@ func GetActivities(ctx context.Context, session *Session) ([]*Activity, error) {
 			return nil, err
 		}
 
-		activities = append(activities, activity)
+		activities = append(activities, *activity)
 	}
 
 	return activities, nil

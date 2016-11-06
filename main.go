@@ -84,7 +84,7 @@ func getFilename(t time.Time, ext string) string {
 	return fmt.Sprintf("Runtastic %s.%s", s, ext)
 }
 
-func archive(filename string, activities []*api.Activity) (err error) {
+func archive(filename string, activities []api.Activity) (err error) {
 	file, err := os.Create(filename)
 
 	if err != nil {
