@@ -1,8 +1,7 @@
-package main
+package api
 
 import (
 	"encoding/binary"
-	"encoding/xml"
 	"io"
 	"strconv"
 	"time"
@@ -15,10 +14,6 @@ type timestamp int64
 type reader struct {
 	io.Reader
 	err error
-}
-
-type rfc3339Time struct {
-	time.Time
 }
 
 func (b jsonBool) Bool() (bool, error) {
@@ -57,16 +52,5 @@ func (t timestamp) toUtcTime() time.Time {
 func (r *reader) read(data interface{}) {
 	if r.err == nil {
 		r.err = binary.Read(r.Reader, binary.BigEndian, data)
-	}
-}
-
-func (t rfc3339Time) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
-	e.EncodeElement(t.Format(time.RFC3339), start)
-	return nil
-}
-
-func checkedClose(c io.Closer, err *error) {
-	if cerr := c.Close(); cerr != nil && *err == nil {
-		*err = cerr
 	}
 }

@@ -6,10 +6,12 @@ import (
 	"encoding/xml"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"time"
 
+	"github.com/metalnem/runtastic/api"
 	"github.com/pkg/errors"
 )
 
@@ -27,6 +29,10 @@ var (
 	Error = log.New(os.Stderr, "ERROR: ", log.Ldate|log.Ltime)
 )
 
+type rfc3339Time struct {
+	time.Time
+}
+
 type trackPoint struct {
 	Longitude float32     `xml:"lon,attr"`
 	Latitude  float32     `xml:"lat,attr"`
@@ -42,6 +48,17 @@ type gpx struct {
 	Creator        string       `xml:"creator,attr"`
 	Time           rfc3339Time  `xml:"metadata>time"`
 	TrackPoints    []trackPoint `xml:"trk>trkseg>trkpt"`
+}
+
+func (t rfc3339Time) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	e.EncodeElement(t.Format(time.RFC3339), start)
+	return nil
+}
+
+func checkedClose(c io.Closer, err *error) {
+	if cerr := c.Close(); cerr != nil && *err == nil {
+		*err = cerr
+	}
 }
 
 func getCredentials() (string, string, error) {
@@ -67,7 +84,7 @@ func getFilename(t time.Time, ext string) string {
 	return fmt.Sprintf("Runtastic %s.%s", s, ext)
 }
 
-func archive(filename string, activities []*Activity) (err error) {
+func archive(filename string, activities []*api.Activity) (err error) {
 	file, err := os.Create(filename)
 
 	if err != nil {
@@ -131,13 +148,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	user, err := Login(context.Background(), email, password)
+	user, err := api.Login(context.Background(), email, password)
 
 	if err != nil {
 		Error.Fatal(err)
 	}
 
-	activities, err := GetActivities(context.Background(), user)
+	activities, err := api.GetActivities(context.Background(), user)
 
 	if err != nil {
 		Error.Fatal(err)

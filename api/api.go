@@ -1,4 +1,5 @@
-package main
+// Package api implements Runtastic API for downloading activity data.
+package api
 
 import (
 	"bytes"
