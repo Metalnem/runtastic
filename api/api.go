@@ -40,6 +40,11 @@ var (
 	errInvalidActivitiesResponse = errors.New("Invalid activity list response from server")
 	errInvalidGPSTrace           = errors.New("Invalid GPS trace data")
 	errInvalidTime               = errors.New("Invalid time")
+
+	include = []byte(fmt.Sprintf("{%s,%s,%s}",
+		`"includeGpsTrace":{"include":"true","version":"1"}`,
+		`"includeHeartRateTrace":{"include":"true","version":"1"}`,
+		`"includeHeartRateZones":"true"`))
 )
 
 // UserID is unique user identifier.
@@ -86,8 +91,9 @@ type activitiesResponse struct {
 	SyncedUntil        string   `json:"syncedUntil"`
 	MoreItemsAvailable jsonBool `json:"moreItemsAvailable"`
 	Sessions           []struct {
-		ID                ActivityID `json:"id"`
-		GPSTraceAvailable jsonBool   `json:"gpsTraceAvailable"`
+		ID                 ActivityID `json:"id"`
+		GPSTraceAvailable  jsonBool   `json:"gpsTraceAvailable"`
+		HeartRateAvailable jsonBool   `json:"heartRateAvailable"`
 	} `json:"sessions"`
 }
 
@@ -99,6 +105,9 @@ type activityResponse struct {
 		GPSData   struct {
 			Trace string `json:"trace"`
 		} `json:"gpsData"`
+		HeartRateData struct {
+			Trace string `json:"trace"`
+		} `json:"heartRateData"`
 	} `json:"runSessions"`
 }
 
@@ -222,14 +231,17 @@ func GetActivityIDs(ctx context.Context, session *Session) ([]ActivityID, error)
 			}
 
 			for _, session := range data.Sessions {
-				var hasTrace bool
-				hasTrace, err = session.GPSTraceAvailable.Bool()
+				var hasGPSTrace bool
+				hasGPSTrace, err = session.GPSTraceAvailable.Bool()
 
 				if err != nil {
 					return err
 				}
 
-				if hasTrace {
+				var hasHeartRate bool
+				hasHeartRate, _ = session.HeartRateAvailable.Bool()
+
+				if hasGPSTrace || hasHeartRate {
 					l := len(activities)
 					id := ActivityID(session.ID)
 
@@ -329,7 +341,7 @@ func GetActivity(ctx context.Context, session *Session, id ActivityID) (*Activit
 	defer cancel()
 
 	url := fmt.Sprintf("%s/webapps/services/runsessions/v2/%s/details?access_token=%s", baseURL, id, session.AccessToken)
-	body := bytes.NewReader([]byte(`{"includeGpsTrace":{"include":"true","version":"1"}}`))
+	body := bytes.NewReader(include)
 	req, err := http.NewRequest(http.MethodPost, url, body)
 
 	if err != nil {
