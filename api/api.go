@@ -38,7 +38,6 @@ var (
 	errAuthenticationFailed      = errors.New("Invalid email address or password")
 	errInvalidLoginResponse      = errors.New("Invalid login response from server")
 	errInvalidActivitiesResponse = errors.New("Invalid activity list response from server")
-	errInvalidGPSTrace           = errors.New("Invalid GPS trace data")
 	errInvalidTime               = errors.New("Invalid time")
 
 	include = []byte(fmt.Sprintf("{%s,%s,%s}",
@@ -277,7 +276,7 @@ func decodeTrace(trace string) ([]byte, error) {
 		b, err := base64.StdEncoding.DecodeString(line)
 
 		if err != nil {
-			return nil, errors.Wrap(err, errInvalidGPSTrace.Error())
+			return nil, err
 		}
 
 		decoded = append(decoded, b...)
@@ -328,7 +327,7 @@ func parseGPSData(trace string) ([]DataPoint, error) {
 	var size int32
 
 	if err := binary.Read(buf, binary.BigEndian, &size); err != nil {
-		return nil, errInvalidGPSTrace
+		return nil, err
 	}
 
 	var points []DataPoint
@@ -337,7 +336,7 @@ func parseGPSData(trace string) ([]DataPoint, error) {
 		point, err := parseDataPoint(buf)
 
 		if err != nil {
-			return nil, errors.Wrap(err, errInvalidGPSTrace.Error())
+			return nil, err
 		}
 
 		points = append(points, point)
@@ -357,7 +356,7 @@ func parseHeartRateData(trace string) (map[time.Time]uint8, error) {
 	var size int32
 
 	if err := binary.Read(buf, binary.BigEndian, &size); err != nil {
-		return nil, errInvalidGPSTrace
+		return nil, err
 	}
 
 	points := make(map[time.Time]uint8)
@@ -378,7 +377,7 @@ func parseHeartRateData(trace string) (map[time.Time]uint8, error) {
 		r.read(&distance)
 
 		if r.err != nil {
-			return nil, errors.Wrap(err, errInvalidGPSTrace.Error())
+			return nil, err
 		}
 
 		points[t.toUtcTime()] = heartRate
