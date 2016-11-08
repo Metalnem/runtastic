@@ -38,12 +38,14 @@ type trackPoint struct {
 	Latitude  float32     `xml:"lat,attr"`
 	Elevation float32     `xml:"ele,omitempty"`
 	Time      rfc3339Time `xml:"time,omitempty"`
+	HeartRate *uint8      `xml:"extensions>gpxtpx:TrackPointExtension>gpxtpx:hr,omitempty"`
 }
 
 type gpx struct {
 	XMLName        xml.Name     `xml:"http://www.topografix.com/GPX/1/1 gpx"`
 	SchemaInstance string       `xml:"xmlns:xsi,attr"`
 	SchemaLocation string       `xml:"xsi:schemaLocation,attr"`
+	Extension      string       `xml:"xmlnss:gpxtpx,attr"`
 	Version        float32      `xml:"version,attr"`
 	Creator        string       `xml:"creator,attr"`
 	Time           rfc3339Time  `xml:"metadata>time"`
@@ -115,12 +117,14 @@ func archive(filename string, activities []api.Activity) (err error) {
 				Latitude:  point.Latitude,
 				Elevation: point.Elevation,
 				Time:      rfc3339Time{point.Time},
+				HeartRate: &point.HeartRate,
 			})
 		}
 
 		data := gpx{
 			SchemaInstance: "http://www.w3.org/2001/XMLSchema-instance",
 			SchemaLocation: "http://www.topografix.com/GPX/1/1",
+			Extension:      "http://www.garmin.com/xmlschemas/TrackPointExtension/v1",
 			Version:        1.1,
 			Creator:        "Runtastic Archiver, https://github.com/Metalnem/runtastic",
 			Time:           rfc3339Time{activity.StartTime},
