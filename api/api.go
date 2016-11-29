@@ -70,7 +70,7 @@ type DataPoint struct {
 	Distance      int32
 	ElevationGain int16
 	ElevationLoss int16
-	HeartRate     uint8
+	HeartRate     *uint8
 }
 
 // Activity contains metadata and collection of data points for single activity.
@@ -345,7 +345,7 @@ func parseGPSData(trace string) ([]DataPoint, error) {
 	return points, nil
 }
 
-func parseHeartRateData(trace string) (map[time.Time]uint8, error) {
+func parseHeartRateData(trace string) (map[time.Time]*uint8, error) {
 	decoded, err := decodeTrace(trace)
 
 	if err != nil {
@@ -359,7 +359,7 @@ func parseHeartRateData(trace string) (map[time.Time]uint8, error) {
 		return nil, err
 	}
 
-	points := make(map[time.Time]uint8)
+	points := make(map[time.Time]*uint8)
 
 	for i := 0; i < int(size); i++ {
 		var t timestamp
@@ -380,7 +380,7 @@ func parseHeartRateData(trace string) (map[time.Time]uint8, error) {
 			return nil, err
 		}
 
-		points[t.toUtcTime()] = heartRate
+		points[t.toUtcTime()] = &heartRate
 	}
 
 	return points, nil

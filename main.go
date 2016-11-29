@@ -117,7 +117,7 @@ func archive(filename string, activities []api.Activity) (err error) {
 				Latitude:  point.Latitude,
 				Elevation: point.Elevation,
 				Time:      rfc3339Time{point.Time},
-				HeartRate: &point.HeartRate,
+				HeartRate: point.HeartRate,
 			})
 		}
 
