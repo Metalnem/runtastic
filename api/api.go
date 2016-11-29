@@ -24,7 +24,7 @@ const (
 	appVersion = "6.9.2"
 
 	baseURL       = "https://appws.runtastic.com"
-	httpTimeout   = 5 * time.Second
+	httpTimeout   = 30 * time.Second
 	sessionCookie = "_runtastic_appws_session"
 
 	headerAppKey      = "X-App-Key"
