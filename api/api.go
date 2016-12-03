@@ -15,6 +15,9 @@ import (
 	"strings"
 	"time"
 
+	"net/http/httputil"
+
+	"github.com/golang/glog"
 	"github.com/pkg/errors"
 )
 
@@ -125,6 +128,18 @@ func setHeaders(header http.Header) {
 	header.Set(headerDate, t)
 }
 
+func dumpResponse(resp *http.Response) {
+	if glog.V(1) {
+		body, err := httputil.DumpResponse(resp, true)
+
+		if err != nil {
+			glog.Fatal(err)
+		}
+
+		glog.V(1).Infof("%s", body)
+	}
+}
+
 // Login connects to Runtastic API server and authenticates user using given email and password.
 func Login(ctx context.Context, email, password string) (*Session, error) {
 	ctx, cancel := context.WithTimeout(ctx, httpTimeout)
@@ -157,6 +172,7 @@ func Login(ctx context.Context, email, password string) (*Session, error) {
 	}
 
 	defer resp.Body.Close()
+	dumpResponse(resp)
 
 	// For some silly reason, Runtastic API returns 402 instead of 401
 	if resp.StatusCode == http.StatusPaymentRequired {
@@ -218,6 +234,7 @@ func GetActivityIDs(ctx context.Context, session *Session) ([]ActivityID, error)
 			}
 
 			defer resp.Body.Close()
+			dumpResponse(resp)
 
 			if resp.StatusCode != http.StatusOK {
 				return errors.WithMessage(errors.New(resp.Status), "Failed to download list of activities")
@@ -413,6 +430,7 @@ func GetActivity(ctx context.Context, session *Session, id ActivityID) (*Activit
 	}
 
 	defer resp.Body.Close()
+	dumpResponse(resp)
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, errors.Wrapf(err, "Failed to download data for activity %s", id)
