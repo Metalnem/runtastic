@@ -7,11 +7,11 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/metalnem/runtastic/api"
 	"github.com/pkg/errors"
 )
@@ -22,12 +22,6 @@ var (
 
 	errMissingCredentials = errors.New("Missing email address or password")
 	errNoActivities       = errors.New("There are no activities to backup")
-
-	// Info is used for logging information.
-	Info = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime)
-
-	// Error is used for logging errors.
-	Error = log.New(os.Stderr, "ERROR: ", log.Ldate|log.Ltime)
 
 	schemaLocation = strings.Join([]string{
 		"http://www.topografix.com/GPX/1/1",
@@ -165,24 +159,22 @@ func main() {
 	user, err := api.Login(context.Background(), email, password)
 
 	if err != nil {
-		Error.Fatal(err)
+		glog.Exit(err)
 	}
 
 	activities, err := api.GetActivities(context.Background(), user)
 
 	if err != nil {
-		Error.Fatal(err)
+		glog.Exit(err)
 	}
 
 	if len(activities) == 0 {
-		Error.Fatal(errNoActivities)
+		glog.Exit(errNoActivities)
 	}
 
 	filename := getFilename(time.Now(), "zip")
 
 	if err = archive(filename, activities); err != nil {
-		Error.Fatal(err)
+		glog.Exit(err)
 	}
-
-	Info.Printf("Activities successfully archived to %s\n", filename)
 }
