@@ -177,4 +177,6 @@ func main() {
 	if err = archive(filename, activities); err != nil {
 		glog.Exit(err)
 	}
+
+	glog.Flush()
 }
