@@ -150,8 +150,7 @@ func main() {
 	email, password, err := getCredentials()
 
 	if err != nil {
-		flag.Usage()
-		os.Exit(1)
+		glog.Exit(err)
 	}
 
 	user, err := api.Login(context.Background(), email, password)
