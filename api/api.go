@@ -62,8 +62,8 @@ type Session struct {
 	Cookie      string
 }
 
-// DataPoint represents single data point with GPS and heart rate data.
-type DataPoint struct {
+// GPSPoint represents single GPS data point.
+type GPSPoint struct {
 	Longitude     float32
 	Latitude      float32
 	Elevation     float32
@@ -73,15 +73,23 @@ type DataPoint struct {
 	Distance      int32
 	ElevationGain int16
 	ElevationLoss int16
-	HeartRate     *uint8
+}
+
+// HeartRatePoint represents single heart rate data point.
+type HeartRatePoint struct {
+	Time      time.Time
+	HeartRate uint8
+	Elapsed   time.Duration
+	Distance  int32
 }
 
 // Activity contains metadata and collection of data points for single activity.
 type Activity struct {
-	ID        ActivityID
-	StartTime time.Time
-	EndTime   time.Time
-	Trace     []DataPoint
+	ID            ActivityID
+	StartTime     time.Time
+	EndTime       time.Time
+	GPSData       []GPSPoint
+	HeartRateData []HeartRatePoint
 }
 
 type loginRequest struct {
@@ -302,8 +310,8 @@ func decodeTrace(trace string) ([]byte, error) {
 	return decoded, nil
 }
 
-func parseDataPoint(input io.Reader) (DataPoint, error) {
-	var point DataPoint
+func parseDataPoint(input io.Reader) (GPSPoint, error) {
+	var point GPSPoint
 	var t timestamp
 	var elapsed int32
 
@@ -324,7 +332,7 @@ func parseDataPoint(input io.Reader) (DataPoint, error) {
 	r.read(&point.ElevationLoss)
 
 	if r.err != nil {
-		return DataPoint{}, r.err
+		return GPSPoint{}, r.err
 	}
 
 	point.Time = t.toUtcTime()
@@ -333,7 +341,11 @@ func parseDataPoint(input io.Reader) (DataPoint, error) {
 	return point, nil
 }
 
-func parseGPSData(trace string) ([]DataPoint, error) {
+func parseGPSData(trace string) ([]GPSPoint, error) {
+	if trace == "" {
+		return nil, nil
+	}
+
 	decoded, err := decodeTrace(trace)
 
 	if err != nil {
@@ -347,7 +359,7 @@ func parseGPSData(trace string) ([]DataPoint, error) {
 		return nil, err
 	}
 
-	var points []DataPoint
+	var points []GPSPoint
 
 	for i := 0; i < int(size); i++ {
 		point, err := parseDataPoint(buf)
@@ -362,7 +374,37 @@ func parseGPSData(trace string) ([]DataPoint, error) {
 	return points, nil
 }
 
-func parseHeartRateData(trace string) (map[time.Time]*uint8, error) {
+func parseHeartRate(input io.Reader) (HeartRatePoint, error) {
+	var point HeartRatePoint
+	var t timestamp
+	var elapsed int32
+
+	r := reader{input, nil}
+
+	r.read(&t)
+	r.read(&point.HeartRate)
+
+	var unknown uint8
+	r.read(&unknown)
+
+	r.read(&elapsed)
+	r.read(&point.Distance)
+
+	if r.err != nil {
+		return HeartRatePoint{}, r.err
+	}
+
+	point.Time = t.toUtcTime()
+	point.Elapsed = time.Duration(elapsed) * time.Millisecond
+
+	return point, nil
+}
+
+func parseHeartRateData(trace string) ([]HeartRatePoint, error) {
+	if trace == "" {
+		return nil, nil
+	}
+
 	decoded, err := decodeTrace(trace)
 
 	if err != nil {
@@ -376,28 +418,16 @@ func parseHeartRateData(trace string) (map[time.Time]*uint8, error) {
 		return nil, err
 	}
 
-	points := make(map[time.Time]*uint8)
+	var points []HeartRatePoint
 
 	for i := 0; i < int(size); i++ {
-		var t timestamp
-		var heartRate uint8
-		var unknown uint8
-		var elapsed int32
-		var distance int32
+		point, err := parseHeartRate(buf)
 
-		r := reader{buf, nil}
-
-		r.read(&t)
-		r.read(&heartRate)
-		r.read(&unknown)
-		r.read(&elapsed)
-		r.read(&distance)
-
-		if r.err != nil {
+		if err != nil {
 			return nil, err
 		}
 
-		points[t.toUtcTime()] = &heartRate
+		points = append(points, point)
 	}
 
 	return points, nil
@@ -446,20 +476,21 @@ func GetActivity(ctx context.Context, session *Session, id ActivityID) (*Activit
 	gpsData, err := parseGPSData(data.RunSessions.GPSData.Trace)
 
 	if err != nil {
-		return nil, errors.Wrapf(err, "Invalid data received from server for activity %s", id)
+		return nil, errors.Wrapf(err, "Invalid GPS data received from server for activity %s", id)
 	}
 
-	if heartRateData, err := parseHeartRateData(data.RunSessions.HeartRateData.Trace); err == nil {
-		for i := 0; i < len(gpsData); i++ {
-			gpsData[i].HeartRate = heartRateData[gpsData[i].Time]
-		}
+	heartRateData, err := parseHeartRateData(data.RunSessions.HeartRateData.Trace)
+
+	if err != nil {
+		return nil, errors.Wrapf(err, "Invalid heart rate data received from server for activity %s", id)
 	}
 
 	activity := Activity{
-		ID:        id,
-		StartTime: time.Time(data.RunSessions.StartTime),
-		EndTime:   time.Time(data.RunSessions.EndTime),
-		Trace:     gpsData,
+		ID:            id,
+		StartTime:     time.Time(data.RunSessions.StartTime),
+		EndTime:       time.Time(data.RunSessions.EndTime),
+		GPSData:       gpsData,
+		HeartRateData: heartRateData,
 	}
 
 	return &activity, nil

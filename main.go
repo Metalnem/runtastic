@@ -42,7 +42,6 @@ type trackPoint struct {
 	Latitude  float32     `xml:"lat,attr"`
 	Elevation float32     `xml:"ele,omitempty"`
 	Time      rfc3339Time `xml:"time,omitempty"`
-	HeartRate *uint8      `xml:"extensions>gpxtpx:TrackPointExtension>gpxtpx:hr,omitempty"`
 }
 
 type gpx struct {
@@ -115,13 +114,12 @@ func archive(filename string, activities []api.Activity) (err error) {
 
 		var points []trackPoint
 
-		for _, point := range activity.Trace {
+		for _, point := range activity.GPSData {
 			points = append(points, trackPoint{
 				Longitude: point.Longitude,
 				Latitude:  point.Latitude,
 				Elevation: point.Elevation,
 				Time:      rfc3339Time{point.Time},
-				HeartRate: point.HeartRate,
 			})
 		}
 
