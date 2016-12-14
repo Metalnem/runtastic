@@ -105,14 +105,16 @@ type loginRequest struct {
 	Password             string   `json:"password"`
 }
 
+type session struct {
+	ID                 ActivityID `json:"id"`
+	GPSTraceAvailable  jsonBool   `json:"gpsTraceAvailable"`
+	HeartRateAvailable jsonBool   `json:"heartRateAvailable"`
+}
+
 type activitiesResponse struct {
-	SyncedUntil        string   `json:"syncedUntil"`
-	MoreItemsAvailable jsonBool `json:"moreItemsAvailable"`
-	Sessions           []struct {
-		ID                 ActivityID `json:"id"`
-		GPSTraceAvailable  jsonBool   `json:"gpsTraceAvailable"`
-		HeartRateAvailable jsonBool   `json:"heartRateAvailable"`
-	} `json:"sessions"`
+	SyncedUntil        string    `json:"syncedUntil"`
+	MoreItemsAvailable jsonBool  `json:"moreItemsAvailable"`
+	Sessions           []session `json:"sessions"`
 }
 
 type activityResponse struct {
