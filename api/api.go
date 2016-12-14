@@ -26,7 +26,6 @@ const (
 	appSecret  = "T68bA6dHk2ayW1Y39BQdEnUmGqM8Zq1SFZ3kNas3KYDjp471dJNXLcoYWsDBd1mH"
 	appVersion = "6.9.2"
 
-	baseURL       = "https://appws.runtastic.com"
 	httpTimeout   = 30 * time.Second
 	sessionCookie = "_runtastic_appws_session"
 
@@ -38,6 +37,8 @@ const (
 )
 
 var (
+	baseURL = "https://appws.runtastic.com"
+
 	errAuthenticationFailed      = errors.New("Invalid email address or password")
 	errInvalidLoginResponse      = errors.New("Invalid login response from server")
 	errInvalidActivitiesResponse = errors.New("Invalid activity list response from server")
