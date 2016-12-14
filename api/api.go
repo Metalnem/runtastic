@@ -62,8 +62,16 @@ type Session struct {
 	Cookie      string
 }
 
-// GPSPoint represents single GPS data point.
-type GPSPoint struct {
+// DataPoint represents single activity data point.
+type DataPoint struct {
+	Longitude float32
+	Latitude  float32
+	Elevation float32
+	Time      time.Time
+	HeartRate uint8
+}
+
+type gpsPoint struct {
 	Longitude     float32
 	Latitude      float32
 	Elevation     float32
@@ -75,8 +83,7 @@ type GPSPoint struct {
 	ElevationLoss int16
 }
 
-// HeartRatePoint represents single heart rate data point.
-type HeartRatePoint struct {
+type heartRatePoint struct {
 	Time      time.Time
 	HeartRate uint8
 	Elapsed   time.Duration
@@ -85,11 +92,10 @@ type HeartRatePoint struct {
 
 // Activity contains metadata and collection of data points for single activity.
 type Activity struct {
-	ID            ActivityID
-	StartTime     time.Time
-	EndTime       time.Time
-	GPSData       []GPSPoint
-	HeartRateData []HeartRatePoint
+	ID        ActivityID
+	StartTime time.Time
+	EndTime   time.Time
+	Data      []DataPoint
 }
 
 type loginRequest struct {
@@ -310,8 +316,8 @@ func decodeTrace(trace string) ([]byte, error) {
 	return decoded, nil
 }
 
-func parseDataPoint(input io.Reader) (GPSPoint, error) {
-	var point GPSPoint
+func parseDataPoint(input io.Reader) (gpsPoint, error) {
+	var point gpsPoint
 	var t timestamp
 	var elapsed int32
 
@@ -332,7 +338,7 @@ func parseDataPoint(input io.Reader) (GPSPoint, error) {
 	r.read(&point.ElevationLoss)
 
 	if r.err != nil {
-		return GPSPoint{}, r.err
+		return gpsPoint{}, r.err
 	}
 
 	point.Time = t.toUtcTime()
@@ -341,7 +347,7 @@ func parseDataPoint(input io.Reader) (GPSPoint, error) {
 	return point, nil
 }
 
-func parseGPSData(trace string) ([]GPSPoint, error) {
+func parseGPSData(trace string) ([]gpsPoint, error) {
 	if trace == "" {
 		return nil, nil
 	}
@@ -359,7 +365,7 @@ func parseGPSData(trace string) ([]GPSPoint, error) {
 		return nil, err
 	}
 
-	var points []GPSPoint
+	var points []gpsPoint
 
 	for i := 0; i < int(size); i++ {
 		point, err := parseDataPoint(buf)
@@ -374,8 +380,8 @@ func parseGPSData(trace string) ([]GPSPoint, error) {
 	return points, nil
 }
 
-func parseHeartRate(input io.Reader) (HeartRatePoint, error) {
-	var point HeartRatePoint
+func parseHeartRate(input io.Reader) (heartRatePoint, error) {
+	var point heartRatePoint
 	var t timestamp
 	var elapsed int32
 
@@ -391,7 +397,7 @@ func parseHeartRate(input io.Reader) (HeartRatePoint, error) {
 	r.read(&point.Distance)
 
 	if r.err != nil {
-		return HeartRatePoint{}, r.err
+		return heartRatePoint{}, r.err
 	}
 
 	point.Time = t.toUtcTime()
@@ -400,7 +406,7 @@ func parseHeartRate(input io.Reader) (HeartRatePoint, error) {
 	return point, nil
 }
 
-func parseHeartRateData(trace string) ([]HeartRatePoint, error) {
+func parseHeartRateData(trace string) ([]heartRatePoint, error) {
 	if trace == "" {
 		return nil, nil
 	}
@@ -418,7 +424,7 @@ func parseHeartRateData(trace string) ([]HeartRatePoint, error) {
 		return nil, err
 	}
 
-	var points []HeartRatePoint
+	var points []heartRatePoint
 
 	for i := 0; i < int(size); i++ {
 		point, err := parseHeartRate(buf)
@@ -431,6 +437,21 @@ func parseHeartRateData(trace string) ([]HeartRatePoint, error) {
 	}
 
 	return points, nil
+}
+
+func merge(gpsData []gpsPoint, heartRateData []heartRatePoint) []DataPoint {
+	var data []DataPoint
+
+	for _, point := range gpsData {
+		data = append(data, DataPoint{
+			Longitude: point.Longitude,
+			Latitude:  point.Latitude,
+			Elevation: point.Elevation,
+			Time:      point.Time,
+		})
+	}
+
+	return data
 }
 
 // GetActivity downloads GPS trace of an activity with given ID.
@@ -486,11 +507,10 @@ func GetActivity(ctx context.Context, session *Session, id ActivityID) (*Activit
 	}
 
 	activity := Activity{
-		ID:            id,
-		StartTime:     time.Time(data.RunSessions.StartTime),
-		EndTime:       time.Time(data.RunSessions.EndTime),
-		GPSData:       gpsData,
-		HeartRateData: heartRateData,
+		ID:        id,
+		StartTime: time.Time(data.RunSessions.StartTime),
+		EndTime:   time.Time(data.RunSessions.EndTime),
+		Data:      merge(gpsData, heartRateData),
 	}
 
 	return &activity, nil

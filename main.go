@@ -114,7 +114,7 @@ func archive(filename string, activities []api.Activity) (err error) {
 
 		var points []trackPoint
 
-		for _, point := range activity.GPSData {
+		for _, point := range activity.Data {
 			points = append(points, trackPoint{
 				Longitude: point.Longitude,
 				Latitude:  point.Latitude,
