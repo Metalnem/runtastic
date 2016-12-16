@@ -2,49 +2,48 @@ package api
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
-func TestGetActivity(t *testing.T) {
-	userID := UserID("1519071252")
-	activityID := ActivityID("3031240871")
-
+func handle(pattern string, handler http.HandlerFunc) func() {
 	mux := http.NewServeMux()
-
-	mux.HandleFunc("/webapps/services/auth/login", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(Session{
-			UserID:      userID,
-			AccessToken: "token",
-			Cookie:      "cookie",
-		})
-	})
-
-	mux.HandleFunc("/webapps/services/runsessions/v3/sync", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(activitiesResponse{
-			Sessions: []session{{ID: activityID, GPSTraceAvailable: "true"}},
-		})
-	})
+	mux.HandleFunc(pattern, handler)
 
 	server := httptest.NewServer(mux)
-	defer server.Close()
-
 	baseURL = server.URL
-	ctx := context.Background()
 
-	session, err := Login(ctx, "email", "password")
+	return server.Close
+}
+
+func TestLogin(t *testing.T) {
+	close := handle("/webapps/services/auth/login", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"userId":"1519071252","accessToken":"token","Cookie":"cookie"}`)
+	})
+
+	defer close()
+	session, err := Login(context.Background(), "email", "password")
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if session.UserID != userID {
-		t.Fatalf("Expected %s, got %s", userID, session.UserID)
-	}
+	expected := UserID("1519071252")
 
-	ids, err := GetActivityIDs(ctx, session)
+	if session.UserID != expected {
+		t.Fatalf("Expected %s, got %s", expected, session.UserID)
+	}
+}
+
+func TestGetActivityIDs(t *testing.T) {
+	close := handle("/webapps/services/runsessions/v3/sync", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"sessions":[{"id":"3031240871","gpsTraceAvailable":"true"}]}`)
+	})
+
+	defer close()
+	ids, err := GetActivityIDs(context.Background(), new(Session))
 
 	if err != nil {
 		t.Fatal(err)
@@ -54,7 +53,9 @@ func TestGetActivity(t *testing.T) {
 		t.Fatalf("Expected single activity, got %d", len(ids))
 	}
 
-	if ids[0] != activityID {
-		t.Fatalf("Expected %s, got %s", activityID, ids[0])
+	expected := ActivityID("3031240871")
+
+	if ids[0] != expected {
+		t.Fatalf("Expected %s, got %s", expected, ids[0])
 	}
 }
