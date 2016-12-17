@@ -3,9 +3,12 @@ package api
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
+	"time"
 )
 
 func handle(pattern string, handler http.HandlerFunc) func() {
@@ -57,5 +60,40 @@ func TestGetActivityIDs(t *testing.T) {
 
 	if ids[0] != expected {
 		t.Fatalf("Expected %s, got %s", expected, ids[0])
+	}
+}
+
+func TestGetActivity(t *testing.T) {
+	id := ActivityID("1481996726")
+
+	close := handle("/webapps/services/runsessions/v2/1481996726/details", func(w http.ResponseWriter, r *http.Request) {
+		file, err := os.Open("activity.json")
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		io.Copy(w, file)
+	})
+
+	defer close()
+	activity, err := GetActivity(context.Background(), new(Session), id)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := Activity{
+		ID:        id,
+		StartTime: time.Unix(1480085018, 0).UTC(),
+		EndTime:   time.Unix(1480085041, 0).UTC(),
+	}
+
+	if activity.StartTime != expected.StartTime {
+		t.Fatalf("Expected %v, got %v", expected.StartTime, activity.StartTime)
+	}
+
+	if activity.EndTime != expected.EndTime {
+		t.Fatalf("Expected %v, got %v", expected.EndTime, activity.EndTime)
 	}
 }
