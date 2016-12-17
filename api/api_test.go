@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -19,6 +20,16 @@ func handle(pattern string, handler http.HandlerFunc) func() {
 	baseURL = server.URL
 
 	return server.Close
+}
+
+func mustParse(value string) time.Time {
+	t, err := time.Parse(time.RFC3339, value)
+
+	if err != nil {
+		panic(err)
+	}
+
+	return t
 }
 
 func TestLogin(t *testing.T) {
@@ -87,6 +98,18 @@ func TestGetActivity(t *testing.T) {
 		ID:        id,
 		StartTime: time.Unix(1480085018, 0).UTC(),
 		EndTime:   time.Unix(1480085041, 0).UTC(),
+		Data: []DataPoint{
+			{Longitude: 20.470512, Latitude: 44.80998, Elevation: 129.74628, Time: mustParse("2016-11-25T14:43:38Z")},
+			{Longitude: 20.47056, Latitude: 44.809906, Elevation: 129.63553, Time: mustParse("2016-11-25T14:43:40Z")},
+			{Longitude: 20.470585, Latitude: 44.809803, Elevation: 129.62706, Time: mustParse("2016-11-25T14:43:43Z")},
+			{Longitude: 20.470596, Latitude: 44.809734, Elevation: 129.65015, Time: mustParse("2016-11-25T14:43:45Z")},
+			{Longitude: 20.470652, Latitude: 44.809635, Elevation: 129.66025, Time: mustParse("2016-11-25T14:43:48Z")},
+			{Longitude: 20.470716, Latitude: 44.809586, Elevation: 129.61984, Time: mustParse("2016-11-25T14:43:50Z")},
+			{Longitude: 20.47078, Latitude: 44.809513, Elevation: 129.62643, Time: mustParse("2016-11-25T14:43:53Z")},
+			{Longitude: 20.47083, Latitude: 44.809456, Elevation: 129.6278, Time: mustParse("2016-11-25T14:43:55Z")},
+			{Longitude: 20.470943, Latitude: 44.80939, Elevation: 129.58714, Time: mustParse("2016-11-25T14:43:58Z")},
+			{Longitude: 20.47103, Latitude: 44.809315, Elevation: 129.57872, Time: mustParse("2016-11-25T14:44:01Z")},
+		},
 	}
 
 	if activity.StartTime != expected.StartTime {
@@ -95,5 +118,9 @@ func TestGetActivity(t *testing.T) {
 
 	if activity.EndTime != expected.EndTime {
 		t.Fatalf("Expected %v, got %v", expected.EndTime, activity.EndTime)
+	}
+
+	if !reflect.DeepEqual(activity.Data, expected.Data) {
+		t.Fatalf("Expected %v, got %v", expected.Data, activity.Data)
 	}
 }
