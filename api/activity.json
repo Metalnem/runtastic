@@ -1,0 +1,30 @@
+{
+	"runSessions": {
+		"id": "1481996726",
+		"calories": "0",
+		"distance": "87",
+		"duration": "23000",
+		"edited": "false",
+		"elevationGain": "0",
+		"elevationLoss": "0",
+		"endTime": "1480085041000",
+		"manual": "false",
+		"sportTypeId": "1",
+		"startTime": "1480085018000",
+		"updatedAt": "1481996458000",
+		"maxSpeed": "16.00913",
+		"gpsData": {
+			"trace": "AAAACgAAAVib8RWQQaPDnEIzPWtDAb8MAAAAAAAAAAAAAAAAAAAAAAAAAAABWJvxHWBBo8O1QjM9\nWEMBorIAAEGAErMAAAfQAAAACQAAAAAAAAFYm/EpGEGjw8JCMz09QwGghwAAQV8TkQAAE4gAAAAV\nAAAAAAAAAVib8TDoQaPDyEIzPStDAaZwAABBXWyUAAAbWAAAABwAAAAAAAABWJvxPKBBo8PlQjM9\nEUMBqQYAAEFjuD0AACcQAAAAKAAAAAAAAAFYm/FEcEGjxAdCMz0EQwGergAAQVihhAAALuAAAAAw\nAAAAAAAAAVib8VAoQaPEKEIzPPFDAaBeAABBNb/1AAA6mAAAADkAAAAAAAABWJvxV/hBo8RDQjM8\n4kMBoLgAAEFZaWIAAEJoAAAAQQAAAAAAAAFYm/FjsEGjxH5CMzzRQwGWTwAAQVuX6gAATiAAAABM\nAAAAAAAAAVib8W9oQaPEq0IzPL1DAZQnAABBUGckAABZ2AAAAFcAAAAA",
+			"version": "1",
+			"count": "10"
+		},
+		"speedData": {
+			"avg": "13.617",
+			"max": "16.00913"
+		},
+		"pause": "0",
+		"liveTrackingEnabled": "false",
+		"indoor": "false",
+		"gpsTraceAvailable": "true"
+	}
+}
