@@ -455,7 +455,7 @@ func merge(gpsData []gpsPoint, heartRateData []heartRatePoint) []DataPoint {
 	return data
 }
 
-// GetActivity downloads GPS trace of an activity with given ID.
+// GetActivity downloads GPS trace and heart rate data of an activity with given ID.
 func GetActivity(ctx context.Context, session *Session, id ActivityID) (*Activity, error) {
 	ctx, cancel := context.WithTimeout(ctx, httpTimeout)
 	defer cancel()
@@ -517,7 +517,7 @@ func GetActivity(ctx context.Context, session *Session, id ActivityID) (*Activit
 	return &activity, nil
 }
 
-// GetActivities retrieves GPS traces for all available activities.
+// GetActivities retrieves GPS traces and heart rate data for all available activities.
 func GetActivities(ctx context.Context, session *Session) ([]Activity, error) {
 	ids, err := GetActivityIDs(ctx, session)
 
