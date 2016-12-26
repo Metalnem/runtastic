@@ -463,6 +463,8 @@ func merge(gpsData []gpsPoint, heartRateData []heartRatePoint) []DataPoint {
 	combinedData = append(combinedData, rightSentinel)
 
 	for _, heartRate := range heartRateData {
+		heartRate := heartRate
+
 		for !heartRate.Time.Before(combinedData[i+1].gps.Time) {
 			i++
 		}
