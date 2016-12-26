@@ -470,12 +470,15 @@ func merge(gpsData []gpsPoint, heartRateData []heartRatePoint) []DataPoint {
 		}
 
 		leftDiff := heartRate.Time.Sub(combinedData[i].gps.Time)
-		rightDiff := combinedData[i+1].gps.Time.Sub(heartRate.Time)
 
-		if leftDiff <= rightDiff && (combinedData[i].diff == nil || leftDiff < *combinedData[i].diff) {
+		if combinedData[i].diff == nil || leftDiff < *combinedData[i].diff {
 			combinedData[i].heartRate = &heartRate
 			combinedData[i].diff = &leftDiff
-		} else if rightDiff < leftDiff && (combinedData[i+1].diff == nil || rightDiff < *combinedData[i+1].diff) {
+		}
+
+		rightDiff := combinedData[i+1].gps.Time.Sub(heartRate.Time)
+
+		if combinedData[i+1].diff == nil || rightDiff < *combinedData[i+1].diff {
 			combinedData[i+1].heartRate = &heartRate
 			combinedData[i+1].diff = &rightDiff
 		}
