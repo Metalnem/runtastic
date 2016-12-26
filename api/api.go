@@ -466,9 +466,9 @@ func merge(gpsData []gpsPoint, heartRateData []heartRatePoint) []DataPoint {
 			diff1 := gps.Time.Sub(hr1.Time)
 			diff2 := hr2.Time.Sub(gps.Time)
 
-			if diff1 <= diff2 && diff1 <= diff {
+			if diff1 <= diff2 && diff1 <= diff && hr1.HeartRate > 0 {
 				point.HeartRate = hr1.HeartRate
-			} else if diff2 <= diff1 && diff2 <= diff {
+			} else if diff2 <= diff1 && diff2 <= diff && hr2.HeartRate > 0 {
 				point.HeartRate = hr2.HeartRate
 			}
 		}

@@ -38,10 +38,15 @@ type rfc3339Time struct {
 }
 
 type trackPoint struct {
-	Longitude float32     `xml:"lon,attr"`
-	Latitude  float32     `xml:"lat,attr"`
-	Elevation float32     `xml:"ele,omitempty"`
-	Time      rfc3339Time `xml:"time,omitempty"`
+	Longitude  float32     `xml:"lon,attr"`
+	Latitude   float32     `xml:"lat,attr"`
+	Elevation  float32     `xml:"ele,omitempty"`
+	Time       rfc3339Time `xml:"time,omitempty"`
+	Extensions *extensions `xml:"extensions,omitempty"`
+}
+
+type extensions struct {
+	HeartRate uint8 `xml:"gpxtpx:TrackPointExtension>gpxtpx:hr"`
 }
 
 type gpx struct {
@@ -115,12 +120,18 @@ func archive(filename string, activities []api.Activity) (err error) {
 		var points []trackPoint
 
 		for _, point := range activity.Data {
-			points = append(points, trackPoint{
+			tp := trackPoint{
 				Longitude: point.Longitude,
 				Latitude:  point.Latitude,
 				Elevation: point.Elevation,
 				Time:      rfc3339Time{point.Time},
-			})
+			}
+
+			if point.HeartRate > 0 {
+				tp.Extensions = &extensions{HeartRate: point.HeartRate}
+			}
+
+			points = append(points, tp)
 		}
 
 		data := gpx{
