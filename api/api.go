@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -89,12 +90,6 @@ type heartRatePoint struct {
 	HeartRate uint8
 	Elapsed   time.Duration
 	Distance  int32
-}
-
-type combinedPoint struct {
-	gps       *gpsPoint
-	heartRate *heartRatePoint
-	diff      *time.Duration
 }
 
 // Activity contains metadata and collection of data points for single activity.
@@ -447,61 +442,41 @@ func parseHeartRateData(trace string) ([]heartRatePoint, error) {
 }
 
 func merge(gpsData []gpsPoint, heartRateData []heartRatePoint) []DataPoint {
-	now := time.Now().UTC()
-
-	leftSentinel := combinedPoint{gps: &gpsPoint{Time: now.AddDate(-1000, 0, 0)}}
-	rightSentinel := combinedPoint{gps: &gpsPoint{Time: now.AddDate(1000, 0, 0)}}
-
-	combinedData := []combinedPoint{leftSentinel}
-	i := 0
-
-	for _, gps := range gpsData {
-		gps := gps
-		combinedData = append(combinedData, combinedPoint{gps: &gps})
-	}
-
-	combinedData = append(combinedData, rightSentinel)
-
-	for _, heartRate := range heartRateData {
-		heartRate := heartRate
-
-		for !heartRate.Time.Before(combinedData[i+1].gps.Time) {
-			i++
-		}
-
-		leftDiff := heartRate.Time.Sub(combinedData[i].gps.Time)
-
-		if combinedData[i].diff == nil || leftDiff < *combinedData[i].diff {
-			combinedData[i].heartRate = &heartRate
-			combinedData[i].diff = &leftDiff
-		}
-
-		rightDiff := combinedData[i+1].gps.Time.Sub(heartRate.Time)
-
-		if combinedData[i+1].diff == nil || rightDiff < *combinedData[i+1].diff {
-			combinedData[i+1].heartRate = &heartRate
-			combinedData[i+1].diff = &rightDiff
-		}
-	}
-
 	var data []DataPoint
 
-	for _, combined := range combinedData {
+	l := len(heartRateData)
+	diff := 5 * time.Second
+
+	for _, gps := range gpsData {
 		point := DataPoint{
-			Longitude: combined.gps.Longitude,
-			Latitude:  combined.gps.Latitude,
-			Elevation: combined.gps.Elevation,
-			Time:      combined.gps.Time,
+			Longitude: gps.Longitude,
+			Latitude:  gps.Latitude,
+			Elevation: gps.Elevation,
+			Time:      gps.Time,
 		}
 
-		if combined.heartRate != nil {
-			point.HeartRate = combined.heartRate.HeartRate
+		if l > 0 {
+			index := sort.Search(l, func(i int) bool {
+				return !heartRateData[i].Time.Before(gps.Time)
+			})
+
+			hr1 := heartRateData[max(0, index-1)]
+			hr2 := heartRateData[min(l-1, index)]
+
+			diff1 := gps.Time.Sub(hr1.Time)
+			diff2 := hr2.Time.Sub(gps.Time)
+
+			if diff1 <= diff2 && diff1 <= diff {
+				point.HeartRate = hr1.HeartRate
+			} else if diff2 <= diff1 && diff2 <= diff {
+				point.HeartRate = hr2.HeartRate
+			}
 		}
 
 		data = append(data, point)
 	}
 
-	return data[1 : len(data)-1]
+	return data
 }
 
 // GetActivity downloads GPS trace and heart rate data of an activity with given ID.

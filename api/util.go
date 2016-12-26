@@ -54,3 +54,19 @@ func (r *reader) read(data interface{}) {
 		r.err = binary.Read(r.Reader, binary.BigEndian, data)
 	}
 }
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+
+	return b
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+
+	return b
+}
