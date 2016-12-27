@@ -111,6 +111,7 @@ type activitiesResponse struct {
 	MoreItemsAvailable jsonBool `json:"moreItemsAvailable"`
 	Sessions           []struct {
 		ID                 ActivityID `json:"id"`
+		DeletedAt          string     `json:"deletedAt"`
 		GPSTraceAvailable  jsonBool   `json:"gpsTraceAvailable"`
 		HeartRateAvailable jsonBool   `json:"heartRateAvailable"`
 	} `json:"sessions"`
@@ -128,6 +129,22 @@ type activityResponse struct {
 			Trace string `json:"trace"`
 		} `json:"heartRateData"`
 	} `json:"runSessions"`
+}
+
+func (gps gpsPoint) DataPoint() DataPoint {
+	return DataPoint{
+		Longitude: gps.Longitude,
+		Latitude:  gps.Latitude,
+		Elevation: gps.Elevation,
+		Time:      gps.Time,
+	}
+}
+
+func (heartRate heartRatePoint) DataPoint() DataPoint {
+	return DataPoint{
+		Time:      heartRate.Time,
+		HeartRate: heartRate.HeartRate,
+	}
 }
 
 func setHeaders(header http.Header) {
@@ -264,17 +281,7 @@ func GetActivityIDs(ctx context.Context, session *Session) ([]ActivityID, error)
 			}
 
 			for _, session := range data.Sessions {
-				var hasGPSTrace bool
-				hasGPSTrace, err = session.GPSTraceAvailable.Bool()
-
-				if err != nil {
-					return err
-				}
-
-				var hasHeartRate bool
-				hasHeartRate, _ = session.HeartRateAvailable.Bool()
-
-				if hasGPSTrace || hasHeartRate {
+				if session.DeletedAt == "" {
 					l := len(activities)
 					id := ActivityID(session.ID)
 
@@ -444,16 +451,19 @@ func parseHeartRateData(trace string) ([]heartRatePoint, error) {
 func merge(gpsData []gpsPoint, heartRateData []heartRatePoint) []DataPoint {
 	var data []DataPoint
 
+	if len(gpsData) == 0 {
+		for _, heartRate := range heartRateData {
+			data = append(data, heartRate.DataPoint())
+		}
+
+		return data
+	}
+
 	l := len(heartRateData)
 	diff := 5 * time.Second
 
 	for _, gps := range gpsData {
-		point := DataPoint{
-			Longitude: gps.Longitude,
-			Latitude:  gps.Latitude,
-			Elevation: gps.Elevation,
-			Time:      gps.Time,
-		}
+		point := gps.DataPoint()
 
 		if l > 0 {
 			index := sort.Search(l, func(i int) bool {
