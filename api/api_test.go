@@ -74,11 +74,11 @@ func TestGetActivityIDs(t *testing.T) {
 	}
 }
 
-func TestGetActivity(t *testing.T) {
-	id := ActivityID("1481996726")
+func getActivity(t *testing.T, id ActivityID, path string) *Activity {
+	url := fmt.Sprintf("/webapps/services/runsessions/v2/%s/details", id)
 
-	close := handle("/webapps/services/runsessions/v2/1481996726/details", func(w http.ResponseWriter, r *http.Request) {
-		file, err := os.Open("activity.json")
+	close := handle(url, func(w http.ResponseWriter, r *http.Request) {
+		file, err := os.Open(path)
 
 		if err != nil {
 			t.Fatal(err)
@@ -94,7 +94,28 @@ func TestGetActivity(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected := Activity{
+	return activity
+}
+
+func assertEquals(t *testing.T, activity, expected *Activity) {
+	if activity.StartTime != expected.StartTime {
+		t.Fatalf("Expected %v, got %v", expected.StartTime, activity.StartTime)
+	}
+
+	if activity.EndTime != expected.EndTime {
+		t.Fatalf("Expected %v, got %v", expected.EndTime, activity.EndTime)
+	}
+
+	if !reflect.DeepEqual(activity.Data, expected.Data) {
+		t.Fatalf("Expected %v, got %v", expected.Data, activity.Data)
+	}
+}
+
+func TestGetActivityGPS(t *testing.T) {
+	id := ActivityID("1481996726")
+	activity := getActivity(t, id, "static/gps.json")
+
+	expected := &Activity{
 		ID:        id,
 		StartTime: time.Unix(1480085018, 0).UTC(),
 		EndTime:   time.Unix(1480085041, 0).UTC(),
@@ -112,15 +133,23 @@ func TestGetActivity(t *testing.T) {
 		},
 	}
 
-	if activity.StartTime != expected.StartTime {
-		t.Fatalf("Expected %v, got %v", expected.StartTime, activity.StartTime)
+	assertEquals(t, activity, expected)
+}
+
+func TestGetActivityHeartRate(t *testing.T) {
+	id := ActivityID("1481996727")
+	activity := getActivity(t, id, "static/heartRate.json")
+
+	expected := &Activity{
+		ID:        id,
+		StartTime: time.Unix(1482135300, 0).UTC(),
+		EndTime:   time.Unix(1482135324, 0).UTC(),
+		Data: []DataPoint{
+			{HeartRate: 72, Time: mustParse("2016-12-19T08:15:00Z")},
+			{HeartRate: 82, Time: mustParse("2016-12-19T08:15:14Z")},
+			{HeartRate: 92, Time: mustParse("2016-12-19T08:15:24Z")},
+		},
 	}
 
-	if activity.EndTime != expected.EndTime {
-		t.Fatalf("Expected %v, got %v", expected.EndTime, activity.EndTime)
-	}
-
-	if !reflect.DeepEqual(activity.Data, expected.Data) {
-		t.Fatalf("Expected %v, got %v", expected.Data, activity.Data)
-	}
+	assertEquals(t, activity, expected)
 }

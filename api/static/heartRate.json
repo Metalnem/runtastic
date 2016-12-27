@@ -1,0 +1,35 @@
+{
+	"runSessions": {
+		"id": "1481996727",
+		"calories": "0",
+		"distance": "0",
+		"duration": "24000",
+		"edited": "false",
+		"elevationGain": "0",
+		"elevationLoss": "0",
+		"endTime": "1482135324000",
+		"manual": "false",
+		"sportTypeId": "1",
+		"startTime": "1482135300000",
+		"updatedAt": "1482856637000",
+		"additionalInfoData": {
+			"pulseAvg": "76",
+			"pulseMax": "82"
+		},
+		"maxSpeed": "0.0",
+		"heartRateData": {
+			"avg": "76",
+			"max": "82",
+			"trace": "AAAAAwAAAVkWJeegSAAAAAAAAAAAAAAAAVkWJh5QUgAAADawAAAAAAAAAVkWJkVgXAAAAF3AAAAA\nAA==",
+			"version": "1",
+			"count": "3"
+		},
+		"speedData": {
+			"max": "0.0"
+		},
+		"pause": "0",
+		"liveTrackingEnabled": "false",
+		"indoor": "false",
+		"heartRateAvailable": "true"
+	}
+}
