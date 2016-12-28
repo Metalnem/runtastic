@@ -23,6 +23,9 @@ import (
 )
 
 const (
+	// ToleranceKey is key used to get or set tolerance option in Context passed to GetActivity and GetActivities functions.
+	ToleranceKey = RuntasticContextKey("tolerance")
+
 	appKey     = "com.runtastic.android"
 	appSecret  = "T68bA6dHk2ayW1Y39BQdEnUmGqM8Zq1SFZ3kNas3KYDjp471dJNXLcoYWsDBd1mH"
 	appVersion = "6.9.2"
@@ -56,6 +59,9 @@ type UserID string
 
 // ActivityID is unique activity identifier.
 type ActivityID string
+
+// RuntasticContextKey is the type of keys used in Context.
+type RuntasticContextKey string
 
 // Session contains session data for single authenticated user.
 type Session struct {
@@ -448,7 +454,7 @@ func parseHeartRateData(trace string) ([]heartRatePoint, error) {
 	return points, nil
 }
 
-func merge(gpsData []gpsPoint, heartRateData []heartRatePoint) []DataPoint {
+func merge(ctx context.Context, gpsData []gpsPoint, heartRateData []heartRatePoint) []DataPoint {
 	var data []DataPoint
 
 	if len(gpsData) == 0 {
@@ -460,7 +466,11 @@ func merge(gpsData []gpsPoint, heartRateData []heartRatePoint) []DataPoint {
 	}
 
 	l := len(heartRateData)
-	diff := 5 * time.Second
+	diff := 15 * time.Second
+
+	if tolerance, ok := ctx.Value(ToleranceKey).(int); ok && tolerance > 0 {
+		diff = time.Duration(tolerance) * time.Second
+	}
 
 	for _, gps := range gpsData {
 		point := gps.DataPoint()
@@ -545,7 +555,7 @@ func GetActivity(ctx context.Context, session *Session, id ActivityID) (*Activit
 		ID:        id,
 		StartTime: time.Time(data.RunSessions.StartTime),
 		EndTime:   time.Time(data.RunSessions.EndTime),
-		Data:      merge(gpsData, heartRateData),
+		Data:      merge(ctx, gpsData, heartRateData),
 	}
 
 	return &activity, nil

@@ -17,8 +17,9 @@ import (
 )
 
 var (
-	email    = flag.String("email", "", "Email (required)")
-	password = flag.String("password", "", "Password (required)")
+	email     = flag.String("email", "", "")
+	password  = flag.String("password", "", "")
+	tolerance = flag.Int("tolerance", 15, "")
 
 	errMissingCredentials = errors.New("Missing email address or password")
 	errNoActivities       = errors.New("There are no activities to backup")
@@ -170,7 +171,13 @@ func main() {
 		glog.Exit(err)
 	}
 
-	activities, err := api.GetActivities(context.Background(), user)
+	ctx := context.Background()
+
+	if *tolerance > 0 {
+		ctx = context.WithValue(ctx, api.ToleranceKey, *tolerance)
+	}
+
+	activities, err := api.GetActivities(ctx, user)
 
 	if err != nil {
 		glog.Exit(err)
