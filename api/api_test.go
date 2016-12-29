@@ -98,6 +98,10 @@ func getActivity(t *testing.T, id ActivityID, path string) *Activity {
 }
 
 func assertEquals(t *testing.T, activity, expected *Activity) {
+	if activity.Type != expected.Type {
+		t.Fatalf("Expected %v, got %v", expected.Type, activity.Type)
+	}
+
 	if activity.StartTime != expected.StartTime {
 		t.Fatalf("Expected %v, got %v", expected.StartTime, activity.StartTime)
 	}
@@ -117,6 +121,7 @@ func TestGetActivityGPS(t *testing.T) {
 
 	expected := &Activity{
 		ID:        id,
+		Type:      ActivityType{1, "Running", "running"},
 		StartTime: time.Unix(1480085018, 0).UTC(),
 		EndTime:   time.Unix(1480085041, 0).UTC(),
 		Data: []DataPoint{
@@ -142,6 +147,7 @@ func TestGetActivityHeartRate(t *testing.T) {
 
 	expected := &Activity{
 		ID:        id,
+		Type:      ActivityType{3, "Cycling", "cycling"},
 		StartTime: time.Unix(1482135300, 0).UTC(),
 		EndTime:   time.Unix(1482135324, 0).UTC(),
 		Data: []DataPoint{

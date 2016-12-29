@@ -101,6 +101,7 @@ type heartRatePoint struct {
 // Activity contains metadata and collection of data points for single activity.
 type Activity struct {
 	ID        ActivityID
+	Type      ActivityType
 	StartTime time.Time
 	EndTime   time.Time
 	Data      []DataPoint
@@ -125,9 +126,10 @@ type activitiesResponse struct {
 
 type activityResponse struct {
 	RunSessions struct {
-		ID        ActivityID `json:"id"`
-		StartTime jsonTime   `json:"startTime"`
-		EndTime   jsonTime   `json:"endTime"`
+		ID        ActivityID  `json:"id"`
+		Type      json.Number `json:"sportTypeId"`
+		StartTime jsonTime    `json:"startTime"`
+		EndTime   jsonTime    `json:"endTime"`
 		GPSData   struct {
 			Trace string `json:"trace"`
 		} `json:"gpsData"`
@@ -539,6 +541,12 @@ func GetActivity(ctx context.Context, session *Session, id ActivityID) (*Activit
 		return nil, errors.Wrapf(err, "Invalid data received from server for activity %s", id)
 	}
 
+	t, err := data.RunSessions.Type.Int64()
+
+	if err != nil {
+		return nil, errors.Wrapf(err, "Invalid activity type received from server for activity %s", id)
+	}
+
 	gpsData, err := parseGPSData(data.RunSessions.GPSData.Trace)
 
 	if err != nil {
@@ -553,6 +561,7 @@ func GetActivity(ctx context.Context, session *Session, id ActivityID) (*Activit
 
 	activity := Activity{
 		ID:        id,
+		Type:      types[t],
 		StartTime: time.Time(data.RunSessions.StartTime),
 		EndTime:   time.Time(data.RunSessions.EndTime),
 		Data:      merge(ctx, gpsData, heartRateData),
