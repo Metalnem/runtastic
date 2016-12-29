@@ -1,0 +1,33 @@
+{
+	"runSessions": {
+		"id": "1481996728",
+		"calories": "1183",
+		"distance": "12000",
+		"duration": "3750000",
+		"edited": "true",
+		"elevationGain": "120",
+		"elevationLoss": "130",
+		"endTime": "1483031015000",
+		"manual": "true",
+		"sportTypeId": "5",
+		"startTime": "1483025750000",
+		"updatedAt": "1483025811000",
+		"additionalInfoData": {
+			"weatherId": "3",
+			"feelingId": "1",
+			"surfaceId": "5",
+			"notes": "Test test test!",
+			"pulseAvg": "152",
+			"pulseMax": "178",
+			"temperature": "23.0"
+		},
+		"heartRateData": {
+			"avg": "152",
+			"max": "178"
+		},
+		"speedData": {
+			"avg": "11.52"
+		},
+		"pause": "1515000"
+	}
+}

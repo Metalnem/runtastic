@@ -159,3 +159,17 @@ func TestGetActivityHeartRate(t *testing.T) {
 
 	assertEquals(t, activity, expected)
 }
+
+func TestGetActivityManual(t *testing.T) {
+	id := ActivityID("1481996728")
+	activity := getActivity(t, id, "static/manual.json")
+
+	expected := &Activity{
+		ID:        id,
+		Type:      ActivityType{5, "Other", "other"},
+		StartTime: time.Unix(1483025750, 0).UTC(),
+		EndTime:   time.Unix(1483031015, 0).UTC(),
+	}
+
+	assertEquals(t, activity, expected)
+}
