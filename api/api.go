@@ -104,6 +104,9 @@ type Activity struct {
 	Type      ActivityType
 	StartTime time.Time
 	EndTime   time.Time
+	Calories  int32
+	Distance  int32
+	Duration  time.Duration
 	Data      []DataPoint
 }
 
@@ -130,6 +133,9 @@ type activityResponse struct {
 		Type      json.Number `json:"sportTypeId"`
 		StartTime jsonTime    `json:"startTime"`
 		EndTime   jsonTime    `json:"endTime"`
+		Calories  json.Number `json:"calories"`
+		Distance  json.Number `json:"distance"`
+		Duration  json.Number `json:"duration"`
 		GPSData   struct {
 			Trace string `json:"trace"`
 		} `json:"gpsData"`
@@ -559,11 +565,18 @@ func GetActivity(ctx context.Context, session *Session, id ActivityID) (*Activit
 		return nil, errors.Wrapf(err, "Invalid heart rate data received from server for activity %s", id)
 	}
 
+	calories, _ := data.RunSessions.Calories.Int64()
+	distance, _ := data.RunSessions.Distance.Int64()
+	duration, _ := data.RunSessions.Duration.Int64()
+
 	activity := Activity{
 		ID:        id,
 		Type:      types[t],
 		StartTime: time.Time(data.RunSessions.StartTime),
 		EndTime:   time.Time(data.RunSessions.EndTime),
+		Calories:  int32(calories),
+		Distance:  int32(distance),
+		Duration:  time.Duration(duration) * time.Millisecond,
 		Data:      merge(ctx, gpsData, heartRateData),
 	}
 

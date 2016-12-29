@@ -98,20 +98,8 @@ func getActivity(t *testing.T, id ActivityID, path string) *Activity {
 }
 
 func assertEquals(t *testing.T, activity, expected *Activity) {
-	if activity.Type != expected.Type {
-		t.Fatalf("Expected %v, got %v", expected.Type, activity.Type)
-	}
-
-	if activity.StartTime != expected.StartTime {
-		t.Fatalf("Expected %v, got %v", expected.StartTime, activity.StartTime)
-	}
-
-	if activity.EndTime != expected.EndTime {
-		t.Fatalf("Expected %v, got %v", expected.EndTime, activity.EndTime)
-	}
-
-	if !reflect.DeepEqual(activity.Data, expected.Data) {
-		t.Fatalf("Expected %v, got %v", expected.Data, activity.Data)
+	if !reflect.DeepEqual(activity, expected) {
+		t.Fatalf("Expected %v, got %v", expected, activity)
 	}
 }
 
@@ -169,6 +157,9 @@ func TestGetActivityManual(t *testing.T) {
 		Type:      ActivityType{5, "Other", "other"},
 		StartTime: time.Unix(1483025750, 0).UTC(),
 		EndTime:   time.Unix(1483031015, 0).UTC(),
+		Calories:  1183,
+		Distance:  12000,
+		Duration:  3750 * time.Second,
 	}
 
 	assertEquals(t, activity, expected)
