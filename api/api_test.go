@@ -164,6 +164,7 @@ func TestGetActivityManual(t *testing.T) {
 		Duration:      3750 * time.Second,
 		AvgHeartRate:  152,
 		MaxHeartReate: 178,
+		Notes:         "Test test test!",
 	}
 
 	assertEquals(t, activity, expected)

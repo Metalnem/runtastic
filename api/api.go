@@ -109,6 +109,7 @@ type Activity struct {
 	Duration      time.Duration
 	AvgHeartRate  int32
 	MaxHeartReate int32
+	Notes         string
 	Data          []DataPoint
 }
 
@@ -146,6 +147,9 @@ type activityResponse struct {
 			MaxHeartReate json.Number `json:"max"`
 			Trace         string      `json:"trace"`
 		} `json:"heartRateData"`
+		AdditionalData struct {
+			Notes string `json:"notes"`
+		} `json:"additionalInfoData"`
 	} `json:"runSessions"`
 }
 
@@ -585,6 +589,7 @@ func GetActivity(ctx context.Context, session *Session, id ActivityID) (*Activit
 		Duration:      time.Duration(duration) * time.Millisecond,
 		AvgHeartRate:  int32(avgHeartRate),
 		MaxHeartReate: int32(maxHeartRate),
+		Notes:         data.RunSessions.AdditionalData.Notes,
 		Data:          merge(ctx, gpsData, heartRateData),
 	}
 
