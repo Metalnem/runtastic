@@ -7,4 +7,5 @@ Print usage when no credentials are provided
 Test heart rate data merging  
 Add support for pause  
 Use Client struct for API  
-Do not use Context for passing tolerance
+Do not use Context for passing tolerance  
+Make Show HN topic
