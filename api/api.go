@@ -100,14 +100,16 @@ type heartRatePoint struct {
 
 // Activity contains metadata and collection of data points for single activity.
 type Activity struct {
-	ID        ActivityID
-	Type      ActivityType
-	StartTime time.Time
-	EndTime   time.Time
-	Calories  int32
-	Distance  int32
-	Duration  time.Duration
-	Data      []DataPoint
+	ID            ActivityID
+	Type          ActivityType
+	StartTime     time.Time
+	EndTime       time.Time
+	Calories      int32
+	Distance      int32
+	Duration      time.Duration
+	AvgHeartRate  int32
+	MaxHeartReate int32
+	Data          []DataPoint
 }
 
 type loginRequest struct {
@@ -140,7 +142,9 @@ type activityResponse struct {
 			Trace string `json:"trace"`
 		} `json:"gpsData"`
 		HeartRateData struct {
-			Trace string `json:"trace"`
+			AvgHeartRate  json.Number `json:"avg"`
+			MaxHeartReate json.Number `json:"max"`
+			Trace         string      `json:"trace"`
 		} `json:"heartRateData"`
 	} `json:"runSessions"`
 }
@@ -568,16 +572,20 @@ func GetActivity(ctx context.Context, session *Session, id ActivityID) (*Activit
 	calories, _ := data.RunSessions.Calories.Int64()
 	distance, _ := data.RunSessions.Distance.Int64()
 	duration, _ := data.RunSessions.Duration.Int64()
+	avgHeartRate, _ := data.RunSessions.HeartRateData.AvgHeartRate.Int64()
+	maxHeartRate, _ := data.RunSessions.HeartRateData.MaxHeartReate.Int64()
 
 	activity := Activity{
-		ID:        id,
-		Type:      types[t],
-		StartTime: time.Time(data.RunSessions.StartTime),
-		EndTime:   time.Time(data.RunSessions.EndTime),
-		Calories:  int32(calories),
-		Distance:  int32(distance),
-		Duration:  time.Duration(duration) * time.Millisecond,
-		Data:      merge(ctx, gpsData, heartRateData),
+		ID:            id,
+		Type:          types[t],
+		StartTime:     time.Time(data.RunSessions.StartTime),
+		EndTime:       time.Time(data.RunSessions.EndTime),
+		Calories:      int32(calories),
+		Distance:      int32(distance),
+		Duration:      time.Duration(duration) * time.Millisecond,
+		AvgHeartRate:  int32(avgHeartRate),
+		MaxHeartReate: int32(maxHeartRate),
+		Data:          merge(ctx, gpsData, heartRateData),
 	}
 
 	return &activity, nil

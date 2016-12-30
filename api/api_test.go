@@ -134,10 +134,12 @@ func TestGetActivityHeartRate(t *testing.T) {
 	activity := getActivity(t, id, "static/heartRate.json")
 
 	expected := &Activity{
-		ID:        id,
-		Type:      ActivityType{3, "Cycling", "cycling"},
-		StartTime: time.Unix(1482135300, 0).UTC(),
-		EndTime:   time.Unix(1482135324, 0).UTC(),
+		ID:            id,
+		Type:          ActivityType{3, "Cycling", "cycling"},
+		StartTime:     time.Unix(1482135300, 0).UTC(),
+		EndTime:       time.Unix(1482135324, 0).UTC(),
+		AvgHeartRate:  76,
+		MaxHeartReate: 82,
 		Data: []DataPoint{
 			{HeartRate: 72, Time: mustParse("2016-12-19T08:15:00Z")},
 			{HeartRate: 82, Time: mustParse("2016-12-19T08:15:14Z")},
@@ -153,13 +155,15 @@ func TestGetActivityManual(t *testing.T) {
 	activity := getActivity(t, id, "static/manual.json")
 
 	expected := &Activity{
-		ID:        id,
-		Type:      ActivityType{5, "Other", "other"},
-		StartTime: time.Unix(1483025750, 0).UTC(),
-		EndTime:   time.Unix(1483031015, 0).UTC(),
-		Calories:  1183,
-		Distance:  12000,
-		Duration:  3750 * time.Second,
+		ID:            id,
+		Type:          ActivityType{5, "Other", "other"},
+		StartTime:     time.Unix(1483025750, 0).UTC(),
+		EndTime:       time.Unix(1483031015, 0).UTC(),
+		Calories:      1183,
+		Distance:      12000,
+		Duration:      3750 * time.Second,
+		AvgHeartRate:  152,
+		MaxHeartReate: 178,
 	}
 
 	assertEquals(t, activity, expected)
