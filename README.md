@@ -5,6 +5,7 @@ Command line tool to archive all your Runtastic activities.
 
 [Windows](https://github.com/Metalnem/runtastic/releases/download/v1.6.2/runtastic-win64-1.6.2.zip)  
 [Mac OS X](https://github.com/Metalnem/runtastic/releases/download/v1.6.2/runtastic-darwin64-1.6.2.zip)
+[Linux](https://github.com/Metalnem/runtastic/releases/download/v1.6.2/runtastic-linux64-1.6.2.zip)
 
 ## Usage
 
