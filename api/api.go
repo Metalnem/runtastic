@@ -12,11 +12,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httputil"
 	"sort"
 	"strings"
 	"time"
-
-	"net/http/httputil"
 
 	"github.com/golang/glog"
 	"github.com/pkg/errors"
