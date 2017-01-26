@@ -16,6 +16,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+const usage = `Usage of Runtastic Archiver:
+  -email string
+    	Email (required)
+  -password string
+    	Password (required)`
+
 var (
 	email     = flag.String("email", "", "")
 	password  = flag.String("password", "", "")
@@ -162,7 +168,8 @@ func main() {
 	email, password, err := getCredentials()
 
 	if err != nil {
-		glog.Exit(err)
+		fmt.Println(usage)
+		os.Exit(1)
 	}
 
 	user, err := api.Login(context.Background(), email, password)
