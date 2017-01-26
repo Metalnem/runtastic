@@ -105,7 +105,7 @@ func assertEquals(t *testing.T, activity, expected *Activity) {
 
 func TestGetActivityGPS(t *testing.T) {
 	id := ActivityID("1481996726")
-	activity := getActivity(t, id, "static/gps.json")
+	activity := getActivity(t, id, "../static/gps.json")
 
 	expected := &Activity{
 		ID:        id,
@@ -131,7 +131,7 @@ func TestGetActivityGPS(t *testing.T) {
 
 func TestGetActivityHeartRate(t *testing.T) {
 	id := ActivityID("1481996727")
-	activity := getActivity(t, id, "static/heartRate.json")
+	activity := getActivity(t, id, "../static/heartRate.json")
 
 	expected := &Activity{
 		ID:            id,
@@ -152,7 +152,7 @@ func TestGetActivityHeartRate(t *testing.T) {
 
 func TestGetActivityManual(t *testing.T) {
 	id := ActivityID("1481996728")
-	activity := getActivity(t, id, "static/manual.json")
+	activity := getActivity(t, id, "../static/manual.json")
 
 	expected := &Activity{
 		ID:            id,
