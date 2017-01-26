@@ -1,14 +1,17 @@
 package main
 
 import (
+	"archive/zip"
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/metalnem/runtastic/api"
-	"github.com/metalnem/runtastic/export"
+	"github.com/metalnem/runtastic/gpx"
 	"github.com/pkg/errors"
 )
 
@@ -45,6 +48,47 @@ func getCredentials() (string, string, error) {
 	return "", "", errMissingCredentials
 }
 
+func getFilename(t time.Time, ext string) string {
+	s := t.Local().Format("2006-01-02 15.04.05")
+	return fmt.Sprintf("Runtastic %s.%s", s, ext)
+}
+
+func checkedClose(c io.Closer, err *error) {
+	if cerr := c.Close(); cerr != nil && *err == nil {
+		*err = cerr
+	}
+}
+
+func export(activities []api.Activity) error {
+	filename := getFilename(time.Now(), "zip")
+	file, err := os.Create(filename)
+
+	if err != nil {
+		return errors.Wrapf(err, "Failed to create file %s", filename)
+	}
+
+	defer checkedClose(file, &err)
+	zw := zip.NewWriter(file)
+	defer checkedClose(zw, &err)
+
+	for _, activity := range activities {
+		filename := getFilename(activity.EndTime, "gpx")
+		w, err := zw.Create(filename)
+
+		if err != nil {
+			return err
+		}
+
+		exp := gpx.NewExporter(w)
+
+		if err = exp.Export(activity); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func main() {
 	flag.Parse()
 
@@ -77,7 +121,7 @@ func main() {
 		glog.Exit(errNoActivities)
 	}
 
-	if err = export.ToGPX(activities); err != nil {
+	if err = export(activities); err != nil {
 		glog.Exit(err)
 	}
 
