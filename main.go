@@ -73,7 +73,14 @@ func export(activities []api.Activity) error {
 
 	for _, activity := range activities {
 		filename := getFilename(activity.EndTime, "gpx")
-		w, err := zw.Create(filename)
+
+		header := zip.FileHeader{
+			Name:   filename,
+			Method: zip.Deflate,
+		}
+
+		header.SetModTime(time.Now())
+		w, err := zw.CreateHeader(&header)
 
 		if err != nil {
 			return err
