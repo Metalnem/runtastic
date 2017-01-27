@@ -97,7 +97,7 @@ func (exp *Exporter) Export(activity api.Activity) (err error) {
 	}
 
 	metadata := metadata{
-		Description: activity.Type.DisplayName,
+		Description: activity.Notes,
 		Time:        rfc3339Time{activity.StartTime},
 	}
 

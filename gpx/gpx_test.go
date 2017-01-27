@@ -35,11 +35,7 @@ func TestEmpty(t *testing.T) {
 	activity := api.Activity{
 		ID:        "1485532823",
 		StartTime: time.Date(2010, 11, 25, 18, 35, 20, 0, time.UTC),
-		Type: api.ActivityType{
-			ID:          1,
-			DisplayName: "Running",
-			ExportName:  "running",
-		},
+		Notes:     "Test note!",
 	}
 
 	test(t, activity, "../static/empty.gpx")
