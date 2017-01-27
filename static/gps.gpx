@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="Runtastic Archiver, https://github.com/Metalnem/runtastic" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd http://www.garmin.com/xmlschemas/GpxExtensions/v3 http://www.garmin.com/xmlschemas/GpxExtensionsv3.xsd http://www.garmin.com/xmlschemas/TrackPointExtension/v1 http://www.garmin.com/xmlschemas/TrackPointExtensionv1.xsd" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1">
+  <metadata>
+    <time>2016-11-30T14:46:38Z</time>
+  </metadata>
+  <trk>
+    <link href="http://www.runtastic.com/sport-sessions/1485532823">
+      <text>Visit this link to view this activity on runtastic.com</text>
+    </link>
+    <trkseg>
+      <trkpt lon="20.472" lat="44.80873">
+        <ele>128.83632</ele>
+        <time>2016-11-30T14:47:29Z</time>
+      </trkpt>
+      <trkpt lon="20.47212" lat="44.808666">
+        <ele>128.83633</ele>
+        <time>2016-11-30T14:47:32Z</time>
+      </trkpt>
+      <trkpt lon="20.472223" lat="44.8086">
+        <ele>128.8084</ele>
+        <time>2016-11-30T14:47:35Z</time>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>

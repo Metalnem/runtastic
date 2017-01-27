@@ -9,6 +9,16 @@ import (
 	"github.com/metalnem/runtastic/api"
 )
 
+func mustParse(value string) time.Time {
+	t, err := time.Parse(time.RFC3339, value)
+
+	if err != nil {
+		panic(err)
+	}
+
+	return t
+}
+
 func test(t *testing.T, activity api.Activity, path string) {
 	var b bytes.Buffer
 	exp := NewExporter(&b)
@@ -34,9 +44,23 @@ func test(t *testing.T, activity api.Activity, path string) {
 func TestEmpty(t *testing.T) {
 	activity := api.Activity{
 		ID:        "1485532823",
-		StartTime: time.Date(2010, 11, 25, 18, 35, 20, 0, time.UTC),
+		StartTime: mustParse("2010-11-25T18:35:20Z"),
 		Notes:     "Test note!",
 	}
 
 	test(t, activity, "../static/empty.gpx")
+}
+
+func TestGPS(t *testing.T) {
+	activity := api.Activity{
+		ID:        "1485532823",
+		StartTime: mustParse("2016-11-30T14:46:38Z"),
+		Data: []api.DataPoint{
+			{Longitude: 20.472, Latitude: 44.80873, Elevation: 128.83632, Time: mustParse("2016-11-30T14:47:29Z")},
+			{Longitude: 20.47212, Latitude: 44.808666, Elevation: 128.83633, Time: mustParse("2016-11-30T14:47:32Z")},
+			{Longitude: 20.472223, Latitude: 44.8086, Elevation: 128.8084, Time: mustParse("2016-11-30T14:47:35Z")},
+		},
+	}
+
+	test(t, activity, "../static/gps.gpx")
 }
