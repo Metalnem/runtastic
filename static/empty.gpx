@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="Runtastic Archiver, https://github.com/Metalnem/runtastic" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd http://www.garmin.com/xmlschemas/GpxExtensions/v3 http://www.garmin.com/xmlschemas/GpxExtensionsv3.xsd http://www.garmin.com/xmlschemas/TrackPointExtension/v1 http://www.garmin.com/xmlschemas/TrackPointExtensionv1.xsd" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1">
+  <metadata>
+    <desc>Running</desc>
+    <time>2010-11-25T18:35:20Z</time>
+  </metadata>
+  <trk>
+    <link href="http://www.runtastic.com/sport-sessions/1485532823">
+      <text>Visit this link to view this activity on runtastic.com</text>
+    </link>
+  </trk>
+</gpx>

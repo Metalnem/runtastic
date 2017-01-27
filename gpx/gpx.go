@@ -29,6 +29,16 @@ type rfc3339Time struct {
 	time.Time
 }
 
+type metadata struct {
+	Description string      `xml:"desc,omitempty"`
+	Time        rfc3339Time `xml:"time"`
+}
+
+type link struct {
+	Href string `xml:"href,attr"`
+	Text string `xml:"text"`
+}
+
 type trackPoint struct {
 	Longitude  float32     `xml:"lon,attr"`
 	Latitude   float32     `xml:"lat,attr"`
@@ -42,14 +52,15 @@ type extensions struct {
 }
 
 type gpx struct {
-	XMLName        xml.Name     `xml:"http://www.topografix.com/GPX/1/1 gpx"`
-	Version        float32      `xml:"version,attr"`
-	Creator        string       `xml:"creator,attr"`
-	SchemaInstance string       `xml:"xmlns:xsi,attr"`
-	SchemaLocation string       `xml:"xsi:schemaLocation,attr"`
-	Extension      string       `xml:"xmlns:gpxtpx,attr"`
-	Time           rfc3339Time  `xml:"metadata>time"`
-	TrackPoints    []trackPoint `xml:"trk>trkseg>trkpt"`
+	XMLName        xml.Name      `xml:"http://www.topografix.com/GPX/1/1 gpx"`
+	Version        float32       `xml:"version,attr"`
+	Creator        string        `xml:"creator,attr"`
+	SchemaInstance string        `xml:"xmlns:xsi,attr"`
+	SchemaLocation string        `xml:"xsi:schemaLocation,attr"`
+	Extension      string        `xml:"xmlns:gpxtpx,attr"`
+	Metadata       metadata      `xml:"metadata"`
+	Link           link          `xml:"trk>link"`
+	TrackPoints    *[]trackPoint `xml:"trk>trkseg>trkpt,omitempty"`
 }
 
 func (t rfc3339Time) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
@@ -85,14 +96,28 @@ func (exp *Exporter) Export(activity api.Activity) (err error) {
 		points = append(points, tp)
 	}
 
+	metadata := metadata{
+		Description: activity.Type.DisplayName,
+		Time:        rfc3339Time{activity.StartTime},
+	}
+
+	link := link{
+		Href: fmt.Sprintf("http://www.runtastic.com/sport-sessions/%s", activity.ID),
+		Text: "Visit this link to view this activity on runtastic.com",
+	}
+
 	data := gpx{
 		SchemaInstance: "http://www.w3.org/2001/XMLSchema-instance",
 		SchemaLocation: schemaLocation,
 		Extension:      "http://www.garmin.com/xmlschemas/TrackPointExtension/v1",
 		Version:        1.1,
 		Creator:        "Runtastic Archiver, https://github.com/Metalnem/runtastic",
-		Time:           rfc3339Time{activity.StartTime},
-		TrackPoints:    points,
+		Metadata:       metadata,
+		Link:           link,
+	}
+
+	if len(points) > 0 {
+		data.TrackPoints = &points
 	}
 
 	encoder := xml.NewEncoder(exp.w)
