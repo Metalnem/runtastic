@@ -43,7 +43,7 @@ type trackPoint struct {
 	Longitude  float32     `xml:"lon,attr"`
 	Latitude   float32     `xml:"lat,attr"`
 	Elevation  float32     `xml:"ele,omitempty"`
-	Time       rfc3339Time `xml:"time,omitempty"`
+	Time       rfc3339Time `xml:"time"`
 	Extensions *extensions `xml:"extensions,omitempty"`
 }
 

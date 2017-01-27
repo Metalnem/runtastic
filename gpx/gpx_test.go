@@ -64,3 +64,17 @@ func TestGPS(t *testing.T) {
 
 	test(t, activity, "../static/gps.gpx")
 }
+
+func TestHeartRate(t *testing.T) {
+	activity := api.Activity{
+		ID:        "1485532823",
+		StartTime: mustParse("2016-11-30T14:46:38Z"),
+		Data: []api.DataPoint{
+			{HeartRate: 128, Time: mustParse("2016-11-30T14:47:29Z")},
+			{HeartRate: 129, Time: mustParse("2016-11-30T14:47:32Z")},
+			{HeartRate: 130, Time: mustParse("2016-11-30T14:47:35Z")},
+		},
+	}
+
+	test(t, activity, "../static/heartRate.gpx")
+}
