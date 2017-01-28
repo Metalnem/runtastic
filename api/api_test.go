@@ -99,6 +99,10 @@ func getActivity(t *testing.T, id ActivityID, path string) *Activity {
 }
 
 func assertEquals(t *testing.T, activity, expected *Activity) {
+	for i := 0; i < len(activity.Data); i++ {
+		activity.Data[i].Distance = 0
+	}
+
 	if !reflect.DeepEqual(activity, expected) {
 		t.Fatalf("Expected %v, got %v", expected, activity)
 	}
