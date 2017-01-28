@@ -34,7 +34,8 @@ func mustParse(value string) time.Time {
 
 func TestLogin(t *testing.T) {
 	close := handle("/webapps/services/auth/login", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"userId":"1519071252","accessToken":"token","Cookie":"cookie"}`)
+		http.SetCookie(w, &http.Cookie{Name: "_runtastic_appws_session", Value: "cookie"})
+		fmt.Fprint(w, `{"userId":"1519071252","accessToken":"token"}`)
 	})
 
 	defer close()
@@ -46,8 +47,8 @@ func TestLogin(t *testing.T) {
 
 	expected := UserID("1519071252")
 
-	if session.UserID != expected {
-		t.Fatalf("Expected %s, got %s", expected, session.UserID)
+	if session.userID != expected {
+		t.Fatalf("Expected %s, got %s", expected, session.userID)
 	}
 }
 
@@ -57,7 +58,7 @@ func TestGetActivityIDs(t *testing.T) {
 	})
 
 	defer close()
-	ids, err := GetActivityIDs(context.Background(), new(Session))
+	ids, err := new(Session).GetActivityIDs(context.Background())
 
 	if err != nil {
 		t.Fatal(err)
@@ -88,7 +89,7 @@ func getActivity(t *testing.T, id ActivityID, path string) *Activity {
 	})
 
 	defer close()
-	activity, err := GetActivity(context.Background(), new(Session), id)
+	activity, err := new(Session).GetActivity(context.Background(), id)
 
 	if err != nil {
 		t.Fatal(err)

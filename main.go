@@ -106,7 +106,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	user, err := api.Login(context.Background(), email, password)
+	session, err := api.Login(context.Background(), email, password)
 
 	if err != nil {
 		glog.Exit(err)
@@ -118,7 +118,7 @@ func main() {
 		ctx = context.WithValue(ctx, api.ToleranceKey, *tolerance)
 	}
 
-	activities, err := api.GetActivities(ctx, user)
+	activities, err := session.GetActivities(ctx)
 
 	if err != nil {
 		glog.Exit(err)

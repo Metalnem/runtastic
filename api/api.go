@@ -64,9 +64,9 @@ type RuntasticContextKey string
 
 // Session contains session data for single authenticated user.
 type Session struct {
-	UserID      UserID `json:"userId"`
-	AccessToken string `json:"accessToken"`
-	Cookie      string
+	userID      UserID
+	accessToken string
+	cookie      string
 }
 
 // DataPoint represents single activity data point.
@@ -116,6 +116,11 @@ type loginRequest struct {
 	Email                string   `json:"email"`
 	AdditionalAttributes []string `json:"additionalAttributes"`
 	Password             string   `json:"password"`
+}
+
+type loginResponse struct {
+	UserID      UserID `json:"userId"`
+	AccessToken string `json:"accessToken"`
 }
 
 type activitiesResponse struct {
@@ -237,28 +242,30 @@ func Login(ctx context.Context, email, password string) (*Session, error) {
 		return nil, errors.WithMessage(errors.New(resp.Status), "Failed to login")
 	}
 
-	var data Session
+	var data loginResponse
 	decoder := json.NewDecoder(resp.Body)
 
 	if err = decoder.Decode(&data); err != nil {
 		return nil, errors.WithMessage(err, errInvalidLoginResponse.Error())
 	}
 
+	session := Session{userID: data.UserID, accessToken: data.AccessToken}
+
 	for _, cookie := range resp.Cookies() {
 		if cookie.Name == sessionCookie {
-			data.Cookie = cookie.Value
+			session.cookie = cookie.Value
 		}
 	}
 
-	if data.Cookie == "" {
+	if session.cookie == "" {
 		return nil, errInvalidLoginResponse
 	}
 
-	return &data, nil
+	return &session, nil
 }
 
 // GetActivityIDs returns list of IDs of all activities that have GPS trace available.
-func GetActivityIDs(ctx context.Context, session *Session) ([]ActivityID, error) {
+func (session *Session) GetActivityIDs(ctx context.Context) ([]ActivityID, error) {
 	var activities []ActivityID
 
 	syncedUntil := "0"
@@ -269,7 +276,7 @@ func GetActivityIDs(ctx context.Context, session *Session) ([]ActivityID, error)
 			newCtx, cancel := context.WithTimeout(ctx, httpTimeout)
 			defer cancel()
 
-			url := baseURL + "/webapps/services/runsessions/v3/sync?access_token=" + session.AccessToken
+			url := baseURL + "/webapps/services/runsessions/v3/sync?access_token=" + session.accessToken
 			body := bytes.NewReader([]byte(fmt.Sprintf("{\"syncedUntil\":\"%s\"}", syncedUntil)))
 			req, err := http.NewRequest(http.MethodPost, url, body)
 
@@ -278,7 +285,7 @@ func GetActivityIDs(ctx context.Context, session *Session) ([]ActivityID, error)
 			}
 
 			setHeaders(req.Header)
-			req.AddCookie(&http.Cookie{Name: sessionCookie, Value: session.Cookie})
+			req.AddCookie(&http.Cookie{Name: sessionCookie, Value: session.cookie})
 
 			client := new(http.Client)
 			resp, err := client.Do(req.WithContext(newCtx))
@@ -515,11 +522,11 @@ func merge(ctx context.Context, gpsData []gpsPoint, heartRateData []heartRatePoi
 }
 
 // GetActivity downloads GPS trace and heart rate data of an activity with given ID.
-func GetActivity(ctx context.Context, session *Session, id ActivityID) (*Activity, error) {
+func (session *Session) GetActivity(ctx context.Context, id ActivityID) (*Activity, error) {
 	ctx, cancel := context.WithTimeout(ctx, httpTimeout)
 	defer cancel()
 
-	url := fmt.Sprintf("%s/webapps/services/runsessions/v2/%s/details?access_token=%s", baseURL, id, session.AccessToken)
+	url := fmt.Sprintf("%s/webapps/services/runsessions/v2/%s/details?access_token=%s", baseURL, id, session.accessToken)
 	body := bytes.NewReader(include)
 	req, err := http.NewRequest(http.MethodPost, url, body)
 
@@ -528,13 +535,13 @@ func GetActivity(ctx context.Context, session *Session, id ActivityID) (*Activit
 	}
 
 	setHeaders(req.Header)
-	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: session.Cookie})
+	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: session.cookie})
 
 	client := new(http.Client)
 	resp, err := client.Do(req.WithContext(ctx))
 
 	setHeaders(req.Header)
-	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: session.Cookie})
+	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: session.cookie})
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to download data for activity %s", id)
@@ -596,8 +603,8 @@ func GetActivity(ctx context.Context, session *Session, id ActivityID) (*Activit
 }
 
 // GetActivities retrieves GPS traces and heart rate data for all available activities.
-func GetActivities(ctx context.Context, session *Session) ([]Activity, error) {
-	ids, err := GetActivityIDs(ctx, session)
+func (session *Session) GetActivities(ctx context.Context) ([]Activity, error) {
+	ids, err := session.GetActivityIDs(ctx)
 
 	if err != nil {
 		return nil, err
@@ -606,7 +613,7 @@ func GetActivities(ctx context.Context, session *Session) ([]Activity, error) {
 	var activities []Activity
 
 	for _, id := range ids {
-		activity, err := GetActivity(ctx, session, id)
+		activity, err := session.GetActivity(ctx, id)
 
 		if err != nil {
 			return nil, err
