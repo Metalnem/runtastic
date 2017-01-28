@@ -49,3 +49,19 @@ func TestEmpty(t *testing.T) {
 
 	test(t, activity, "../static/tcx/empty.tcx")
 }
+
+func TestManual(t *testing.T) {
+	activity := api.Activity{
+		ID:            "1485608013",
+		Type:          api.ActivityType{ID: 1, DisplayName: "Running", ExportName: "running"},
+		StartTime:     mustParse("2016-12-10T17:32:40Z"),
+		Calories:      1250,
+		Distance:      9458,
+		Duration:      4250 * time.Second,
+		AvgHeartRate:  156,
+		MaxHeartReate: 182,
+		Notes:         "Test test test!",
+	}
+
+	test(t, activity, "../static/tcx/manual.tcx")
+}

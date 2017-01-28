@@ -24,6 +24,12 @@ type Exporter struct {
 
 type lap struct {
 	StartTime     string     `xml:"StartTime,attr"`
+	TotalTime     float64    `xml:"TotalTimeSeconds,omitempty"`
+	Distance      int32      `xml:"DistanceMeters,omitempty"`
+	Calories      int32      `xml:"Calories,omitempty"`
+	AvgHeartRate  *int32     `xml:"AverageHeartRateBpm>Value,omitempty"`
+	MaxHeartReate *int32     `xml:"MaximumHeartRateBpm>Value,omitempty"`
+	Notes         string     `xml:"Notes,omitempty"`
 	TriggerMethod string     `xml:"TriggerMethod"`
 	TrackPoints   []struct{} `xml:"Track>Trackpoint"`
 }
@@ -59,7 +65,24 @@ func (exp *Exporter) Export(a api.Activity) (err error) {
 	}
 
 	startTime := a.StartTime.Format(time.RFC3339)
-	lap := lap{StartTime: startTime, TriggerMethod: "Manual"}
+
+	lap := lap{
+		StartTime:     startTime,
+		TotalTime:     a.Duration.Seconds(),
+		Distance:      a.Distance,
+		Calories:      a.Calories,
+		Notes:         a.Notes,
+		TriggerMethod: "Manual",
+	}
+
+	if a.AvgHeartRate > 0 {
+		lap.AvgHeartRate = &a.AvgHeartRate
+	}
+
+	if a.MaxHeartReate > 0 {
+		lap.MaxHeartReate = &a.MaxHeartReate
+	}
+
 	activity := activity{Sport: a.Type.ExportName, ID: startTime, Lap: lap}
 
 	if activity.Sport == "" {
