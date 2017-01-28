@@ -1,3 +1,4 @@
+// Package gpx implements exporting Runtastic data in gpx format.
 package gpx
 
 import (
