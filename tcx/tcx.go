@@ -24,8 +24,6 @@ type Exporter struct {
 
 type lap struct {
 	StartTime     string     `xml:"StartTime,attr"`
-	TotalTime     int32      `xml:"TotalTimeSeconds"`
-	Distance      int32      `xml:"DistanceMeters"`
 	TriggerMethod string     `xml:"TriggerMethod"`
 	TrackPoints   []struct{} `xml:"Track>Trackpoint"`
 }
