@@ -112,12 +112,9 @@ func main() {
 		glog.Exit(err)
 	}
 
+	session.Options.Tolerance = *tolerance
+
 	ctx := context.Background()
-
-	if *tolerance > 0 {
-		ctx = context.WithValue(ctx, api.ToleranceKey, *tolerance)
-	}
-
 	activities, err := session.GetActivities(ctx)
 
 	if err != nil {

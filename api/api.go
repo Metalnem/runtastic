@@ -22,9 +22,6 @@ import (
 )
 
 const (
-	// ToleranceKey is key used to get or set tolerance option in Context passed to GetActivity and GetActivities functions.
-	ToleranceKey = RuntasticContextKey("tolerance")
-
 	appKey     = "com.runtastic.android"
 	appSecret  = "T68bA6dHk2ayW1Y39BQdEnUmGqM8Zq1SFZ3kNas3KYDjp471dJNXLcoYWsDBd1mH"
 	appVersion = "6.9.2"
@@ -59,11 +56,14 @@ type UserID string
 // ActivityID is unique activity identifier.
 type ActivityID string
 
-// RuntasticContextKey is the type of keys used in Context.
-type RuntasticContextKey string
+// Options contain parameters that configure how data traces are retrived and merged.
+type Options struct {
+	Tolerance int
+}
 
 // Session contains session data for single authenticated user.
 type Session struct {
+	Options     Options
 	userID      UserID
 	accessToken string
 	cookie      string
@@ -476,7 +476,7 @@ func parseHeartRateData(trace string) ([]heartRatePoint, error) {
 	return points, nil
 }
 
-func merge(ctx context.Context, gpsData []gpsPoint, heartRateData []heartRatePoint) []DataPoint {
+func merge(ctx context.Context, gpsData []gpsPoint, heartRateData []heartRatePoint, tolerance int) []DataPoint {
 	var data []DataPoint
 
 	if len(gpsData) == 0 {
@@ -490,7 +490,7 @@ func merge(ctx context.Context, gpsData []gpsPoint, heartRateData []heartRatePoi
 	l := len(heartRateData)
 	diff := 15 * time.Second
 
-	if tolerance, ok := ctx.Value(ToleranceKey).(int); ok && tolerance > 0 {
+	if tolerance > 0 {
 		diff = time.Duration(tolerance) * time.Second
 	}
 
@@ -596,7 +596,7 @@ func (session *Session) GetActivity(ctx context.Context, id ActivityID) (*Activi
 		AvgHeartRate:  int32(avgHeartRate),
 		MaxHeartReate: int32(maxHeartRate),
 		Notes:         data.RunSessions.AdditionalData.Notes,
-		Data:          merge(ctx, gpsData, heartRateData),
+		Data:          merge(ctx, gpsData, heartRateData, session.Options.Tolerance),
 	}
 
 	return &activity, nil
