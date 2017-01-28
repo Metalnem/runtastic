@@ -1,4 +1,4 @@
-// Package gpx implements exporting Runtastic data in gpx format.
+// Package gpx implements exporting Runtastic data in GPX format.
 package gpx
 
 import (
@@ -75,14 +75,14 @@ func NewExporter(w io.Writer) *Exporter {
 }
 
 // Export writes activity in GPX format to the stream.
-func (exp *Exporter) Export(activity api.Activity) (err error) {
+func (exp *Exporter) Export(a api.Activity) (err error) {
 	if _, err := fmt.Fprint(exp.w, xml.Header); err != nil {
-		return errors.Wrapf(err, "Failed to export activity %s", activity.ID)
+		return errors.Wrapf(err, "Failed to export activity %s", a.ID)
 	}
 
 	var points []trackPoint
 
-	for _, point := range activity.Data {
+	for _, point := range a.Data {
 		tp := trackPoint{
 			Longitude: point.Longitude,
 			Latitude:  point.Latitude,
@@ -98,12 +98,12 @@ func (exp *Exporter) Export(activity api.Activity) (err error) {
 	}
 
 	metadata := metadata{
-		Description: activity.Notes,
-		Time:        rfc3339Time{activity.StartTime},
+		Description: a.Notes,
+		Time:        rfc3339Time{a.StartTime},
 	}
 
 	link := link{
-		Href: fmt.Sprintf("http://www.runtastic.com/sport-sessions/%s", activity.ID),
+		Href: fmt.Sprintf("http://www.runtastic.com/sport-sessions/%s", a.ID),
 		Text: "Visit this link to view this activity on runtastic.com",
 	}
 
@@ -125,7 +125,7 @@ func (exp *Exporter) Export(activity api.Activity) (err error) {
 	encoder.Indent("", "  ")
 
 	if err = encoder.Encode(data); err != nil {
-		return errors.Wrapf(err, "Failed to export activity %s", activity.ID)
+		return errors.Wrapf(err, "Failed to export activity %s", a.ID)
 	}
 
 	return nil

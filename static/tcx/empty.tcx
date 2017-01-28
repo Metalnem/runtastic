@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2" version="1.0" creator="Runtastic Archiver, https://github.com/Metalnem/runtastic" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2 http://www.garmin.com/xmlschemas/TrainingCenterDatabasev2.xsd" xmlns:ns2="http://www.garmin.com/xmlschemas/UserProfile/v2" xmlns:ns3="http://www.garmin.com/xmlschemas/ActivityExtension/v2" xmlns:ns4="http://www.garmin.com/xmlschemas/ProfileExtension/v1" xmlns:ns5="http://www.garmin.com/xmlschemas/ActivityGoals/v1">
+  <Activities>
+    <Activity Sport="other">
+      <Id>2010-11-25T18:35:20Z</Id>
+      <Lap StartTime="2010-11-25T18:35:20Z">
+        <TotalTimeSeconds>0</TotalTimeSeconds>
+        <DistanceMeters>0</DistanceMeters>
+        <TriggerMethod>Manual</TriggerMethod>
+        <Track></Track>
+      </Lap>
+    </Activity>
+  </Activities>
+</TrainingCenterDatabase>

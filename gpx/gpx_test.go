@@ -48,7 +48,7 @@ func TestEmpty(t *testing.T) {
 		Notes:     "Test note!",
 	}
 
-	test(t, activity, "../static/empty.gpx")
+	test(t, activity, "../static/gpx/empty.gpx")
 }
 
 func TestGPS(t *testing.T) {
@@ -62,7 +62,7 @@ func TestGPS(t *testing.T) {
 		},
 	}
 
-	test(t, activity, "../static/gps.gpx")
+	test(t, activity, "../static/gpx/gps.gpx")
 }
 
 func TestHeartRate(t *testing.T) {
@@ -76,5 +76,5 @@ func TestHeartRate(t *testing.T) {
 		},
 	}
 
-	test(t, activity, "../static/heartRate.gpx")
+	test(t, activity, "../static/gpx/heartRate.gpx")
 }

@@ -599,6 +599,10 @@ func (session *Session) GetActivity(ctx context.Context, id ActivityID) (*Activi
 		Data:          merge(ctx, gpsData, heartRateData, session.Options.Tolerance),
 	}
 
+	if activity.Type.ID == 0 {
+		activity.Type = types[5] // Default to "Other"
+	}
+
 	return &activity, nil
 }
 
