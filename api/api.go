@@ -75,6 +75,7 @@ type DataPoint struct {
 	Latitude  float32
 	Elevation float32
 	Time      time.Time
+	Distance  int32
 	HeartRate uint8
 }
 
@@ -163,6 +164,7 @@ func (gps gpsPoint) DataPoint() DataPoint {
 		Latitude:  gps.Latitude,
 		Elevation: gps.Elevation,
 		Time:      gps.Time,
+		Distance:  gps.Distance,
 	}
 }
 
@@ -170,6 +172,7 @@ func (heartRate heartRatePoint) DataPoint() DataPoint {
 	return DataPoint{
 		Time:      heartRate.Time,
 		HeartRate: heartRate.HeartRate,
+		Distance:  heartRate.Distance,
 	}
 }
 

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2" version="1.0" creator="Runtastic Archiver, https://github.com/Metalnem/runtastic" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2 http://www.garmin.com/xmlschemas/TrainingCenterDatabasev2.xsd" xmlns:ns2="http://www.garmin.com/xmlschemas/UserProfile/v2" xmlns:ns3="http://www.garmin.com/xmlschemas/ActivityExtension/v2" xmlns:ns4="http://www.garmin.com/xmlschemas/ProfileExtension/v1" xmlns:ns5="http://www.garmin.com/xmlschemas/ActivityGoals/v1">
+  <Activities>
+    <Activity Sport="other">
+      <Id>2012-10-15T09:30:45Z</Id>
+      <Lap StartTime="2012-10-15T09:30:45Z">
+        <TotalTimeSeconds>10</TotalTimeSeconds>
+        <DistanceMeters>50</DistanceMeters>
+        <TriggerMethod>Manual</TriggerMethod>
+        <Track>
+          <Trackpoint>
+            <Time>2012-10-15T09:32:00Z</Time>
+          </Trackpoint>
+          <Trackpoint>
+            <Time>2012-10-15T09:35:00Z</Time>
+            <DistanceMeters>20</DistanceMeters>
+            <AltitudeMeters>2814.324</AltitudeMeters>
+            <Position>
+              <LatitudeDegrees>28.915173</LatitudeDegrees>
+              <LongitudeDegrees>31.87212</LongitudeDegrees>
+            </Position>
+          </Trackpoint>
+          <Trackpoint>
+            <Time>2012-10-15T09:37:00Z</Time>
+          </Trackpoint>
+          <Trackpoint>
+            <Time>2012-10-15T09:40:00Z</Time>
+            <DistanceMeters>40</DistanceMeters>
+            <AltitudeMeters>2816.279</AltitudeMeters>
+            <Position>
+              <LatitudeDegrees>28.915173</LatitudeDegrees>
+              <LongitudeDegrees>31.87212</LongitudeDegrees>
+            </Position>
+          </Trackpoint>
+        </Track>
+      </Lap>
+    </Activity>
+  </Activities>
+</TrainingCenterDatabase>

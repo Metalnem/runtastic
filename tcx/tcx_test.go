@@ -65,3 +65,36 @@ func TestManual(t *testing.T) {
 
 	test(t, activity, "../static/tcx/manual.tcx")
 }
+
+func TestGPS(t *testing.T) {
+	activity := api.Activity{
+		ID:        "1485610229",
+		StartTime: mustParse("2012-10-15T09:30:45Z"),
+		Duration:  10 * time.Second,
+		Distance:  50,
+		Data: []api.DataPoint{
+			{Time: mustParse("2012-10-15T09:32:00Z")},
+			{Time: mustParse("2012-10-15T09:35:00Z"), Longitude: 31.87315, Latitude: 28.915283, Elevation: 2814.324, Distance: 20},
+			{Time: mustParse("2012-10-15T09:37:00Z")},
+			{Time: mustParse("2012-10-15T09:40:00Z"), Longitude: 31.87212, Latitude: 28.915172, Elevation: 2816.279, Distance: 40},
+		},
+	}
+
+	test(t, activity, "../static/tcx/gps.tcx")
+}
+
+func TestHeartRate(t *testing.T) {
+	activity := api.Activity{
+		ID:        "1485610229",
+		StartTime: mustParse("2012-10-15T09:30:45Z"),
+		Duration:  1234 * time.Second,
+		Distance:  9876,
+		Data: []api.DataPoint{
+			{Time: mustParse("2012-10-15T09:35:00Z"), HeartRate: 150},
+			{Time: mustParse("2012-10-15T09:40:00Z"), HeartRate: 155},
+			{Time: mustParse("2012-10-15T09:45:00Z"), HeartRate: 160},
+		},
+	}
+
+	test(t, activity, "../static/tcx/heartRate.tcx")
+}

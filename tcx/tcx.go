@@ -22,16 +22,25 @@ type Exporter struct {
 	w io.Writer
 }
 
+type trackPoint struct {
+	Time      string   `xml:"Time"`
+	Distance  int32    `xml:"DistanceMeters,omitempty"`
+	Altitude  float32  `xml:"AltitudeMeters,omitempty"`
+	Latitude  *float32 `xml:"Position>LatitudeDegrees,omitempty"`
+	Longitude *float32 `xml:"Position>LongitudeDegrees,omitempty"`
+	HeartRate *uint8   `xml:"HeartRateBpm>Value,omitempty"`
+}
+
 type lap struct {
-	StartTime     string     `xml:"StartTime,attr"`
-	TotalTime     float64    `xml:"TotalTimeSeconds,omitempty"`
-	Distance      int32      `xml:"DistanceMeters,omitempty"`
-	Calories      int32      `xml:"Calories,omitempty"`
-	AvgHeartRate  *int32     `xml:"AverageHeartRateBpm>Value,omitempty"`
-	MaxHeartReate *int32     `xml:"MaximumHeartRateBpm>Value,omitempty"`
-	Notes         string     `xml:"Notes,omitempty"`
-	TriggerMethod string     `xml:"TriggerMethod"`
-	TrackPoints   []struct{} `xml:"Track>Trackpoint"`
+	StartTime     string       `xml:"StartTime,attr"`
+	TotalTime     float64      `xml:"TotalTimeSeconds"`
+	Distance      int32        `xml:"DistanceMeters"`
+	Calories      int32        `xml:"Calories,omitempty"`
+	AvgHeartRate  *int32       `xml:"AverageHeartRateBpm>Value,omitempty"`
+	MaxHeartReate *int32       `xml:"MaximumHeartRateBpm>Value,omitempty"`
+	Notes         string       `xml:"Notes,omitempty"`
+	TriggerMethod string       `xml:"TriggerMethod"`
+	TrackPoints   []trackPoint `xml:"Track>Trackpoint"`
 }
 
 type activity struct {
@@ -64,6 +73,28 @@ func (exp *Exporter) Export(a api.Activity) (err error) {
 		return errors.Wrapf(err, "Failed to export activity %s", a.ID)
 	}
 
+	var points []trackPoint
+
+	for _, point := range a.Data {
+		tp := trackPoint{
+			Time:     point.Time.Format(time.RFC3339),
+			Distance: point.Distance,
+			Altitude: point.Elevation,
+		}
+
+		if point.Latitude > 0 || point.Longitude > 0 {
+			tp.Latitude = &point.Latitude
+			tp.Longitude = &point.Longitude
+		}
+
+		if point.HeartRate > 0 {
+			heartRate := point.HeartRate
+			tp.HeartRate = &heartRate
+		}
+
+		points = append(points, tp)
+	}
+
 	startTime := a.StartTime.Format(time.RFC3339)
 
 	lap := lap{
@@ -73,6 +104,7 @@ func (exp *Exporter) Export(a api.Activity) (err error) {
 		Calories:      a.Calories,
 		Notes:         a.Notes,
 		TriggerMethod: "Manual",
+		TrackPoints:   points,
 	}
 
 	if a.AvgHeartRate > 0 {
