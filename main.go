@@ -69,7 +69,7 @@ func checkedClose(c io.Closer, err *error) {
 	}
 }
 
-func export(activities []api.Activity, exp func(io.Writer) exporter) error {
+func export(activities []api.Activity, exp func(io.Writer) exporter, ext string) error {
 	filename := getFilename(time.Now(), "zip")
 	file, err := os.Create(filename)
 
@@ -82,7 +82,7 @@ func export(activities []api.Activity, exp func(io.Writer) exporter) error {
 	defer checkedClose(zw, &err)
 
 	for _, activity := range activities {
-		filename := getFilename(activity.EndTime, "gpx")
+		filename := getFilename(activity.EndTime, ext)
 
 		header := zip.FileHeader{
 			Name:   filename,
@@ -109,9 +109,10 @@ func export(activities []api.Activity, exp func(io.Writer) exporter) error {
 func main() {
 	flag.Parse()
 
+	ext := strings.ToLower(*format)
 	var exp func(io.Writer) exporter
 
-	switch strings.ToLower(*format) {
+	switch ext {
 	case "gpx":
 		exp = func(w io.Writer) exporter {
 			return gpx.NewExporter(w)
@@ -150,7 +151,7 @@ func main() {
 		glog.Exit(errNoActivities)
 	}
 
-	if err = export(activities, exp); err != nil {
+	if err = export(activities, exp, ext); err != nil {
 		glog.Exit(err)
 	}
 
