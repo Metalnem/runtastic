@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
 	"github.com/metalnem/runtastic/api"
 	"github.com/metalnem/runtastic/gpx"
+	"github.com/metalnem/runtastic/tcx"
 	"github.com/pkg/errors"
 )
 
@@ -19,16 +21,24 @@ const usage = `Usage of Runtastic Archiver:
   -email string
     	Email (required)
   -password string
-    	Password (required)`
+    	Password (required)
+  -format string
+    	Output format (gpx or tcx)`
 
 var (
 	email     = flag.String("email", "", "")
 	password  = flag.String("password", "", "")
+	format    = flag.String("format", "gpx", "")
 	tolerance = flag.Int("tolerance", 15, "")
 
 	errMissingCredentials = errors.New("Missing email address or password")
 	errNoActivities       = errors.New("There are no activities to backup")
+	errInvalidFormat      = errors.New("Invalid output format")
 )
+
+type exporter interface {
+	Export(api.Activity) error
+}
 
 func getCredentials() (string, string, error) {
 	email := *email
@@ -59,7 +69,7 @@ func checkedClose(c io.Closer, err *error) {
 	}
 }
 
-func export(activities []api.Activity) error {
+func export(activities []api.Activity, exp func(io.Writer) exporter) error {
 	filename := getFilename(time.Now(), "zip")
 	file, err := os.Create(filename)
 
@@ -86,7 +96,7 @@ func export(activities []api.Activity) error {
 			return err
 		}
 
-		exp := gpx.NewExporter(w)
+		exp := exp(w)
 
 		if err = exp.Export(activity); err != nil {
 			return err
@@ -125,7 +135,22 @@ func main() {
 		glog.Exit(errNoActivities)
 	}
 
-	if err = export(activities); err != nil {
+	var exp func(io.Writer) exporter
+
+	switch strings.ToLower(*format) {
+	case "gpx":
+		exp = func(w io.Writer) exporter {
+			return gpx.NewExporter(w)
+		}
+	case "tcx":
+		exp = func(w io.Writer) exporter {
+			return tcx.NewExporter(w)
+		}
+	default:
+		glog.Exit(errInvalidFormat)
+	}
+
+	if err = export(activities, exp); err != nil {
 		glog.Exit(err)
 	}
 

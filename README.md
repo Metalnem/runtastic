@@ -16,10 +16,12 @@ Usage of ./runtastic:
     	Email (required)
   -password string
     	Password (required)
+  -format string
+    	Output format (gpx or tcx)
 ```
 
 ## Example
 
 ```
-$ ./runtastic -email user@example.org -password secret123
+$ ./runtastic -email user@example.org -password secret123 -format tcx
 ```

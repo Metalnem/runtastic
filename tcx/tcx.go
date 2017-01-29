@@ -68,7 +68,7 @@ func NewExporter(w io.Writer) *Exporter {
 }
 
 // Export writes activity in TCX format to the stream.
-func (exp *Exporter) Export(a api.Activity) (err error) {
+func (exp *Exporter) Export(a api.Activity) error {
 	if _, err := fmt.Fprint(exp.w, xml.Header); err != nil {
 		return errors.Wrapf(err, "Failed to export activity %s", a.ID)
 	}
@@ -136,7 +136,7 @@ func (exp *Exporter) Export(a api.Activity) (err error) {
 	encoder := xml.NewEncoder(exp.w)
 	encoder.Indent("", "  ")
 
-	if err = encoder.Encode(data); err != nil {
+	if err := encoder.Encode(data); err != nil {
 		return errors.Wrapf(err, "Failed to export activity %s", a.ID)
 	}
 
