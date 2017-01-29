@@ -109,6 +109,21 @@ func export(activities []api.Activity, exp func(io.Writer) exporter) error {
 func main() {
 	flag.Parse()
 
+	var exp func(io.Writer) exporter
+
+	switch strings.ToLower(*format) {
+	case "gpx":
+		exp = func(w io.Writer) exporter {
+			return gpx.NewExporter(w)
+		}
+	case "tcx":
+		exp = func(w io.Writer) exporter {
+			return tcx.NewExporter(w)
+		}
+	default:
+		glog.Exit(errInvalidFormat)
+	}
+
 	email, password, err := getCredentials()
 
 	if err != nil {
@@ -133,21 +148,6 @@ func main() {
 
 	if len(activities) == 0 {
 		glog.Exit(errNoActivities)
-	}
-
-	var exp func(io.Writer) exporter
-
-	switch strings.ToLower(*format) {
-	case "gpx":
-		exp = func(w io.Writer) exporter {
-			return gpx.NewExporter(w)
-		}
-	case "tcx":
-		exp = func(w io.Writer) exporter {
-			return tcx.NewExporter(w)
-		}
-	default:
-		glog.Exit(errInvalidFormat)
 	}
 
 	if err = export(activities, exp); err != nil {
