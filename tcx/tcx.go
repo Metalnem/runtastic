@@ -76,6 +76,8 @@ func (exp *Exporter) Export(a api.Activity) error {
 	var points []trackPoint
 
 	for _, point := range a.Data {
+		point := point
+
 		tp := trackPoint{
 			Time:     point.Time.Format(time.RFC3339),
 			Distance: point.Distance,
@@ -88,8 +90,7 @@ func (exp *Exporter) Export(a api.Activity) error {
 		}
 
 		if point.HeartRate > 0 {
-			heartRate := point.HeartRate
-			tp.HeartRate = &heartRate
+			tp.HeartRate = &point.HeartRate
 		}
 
 		points = append(points, tp)

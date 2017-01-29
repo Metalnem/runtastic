@@ -74,9 +74,9 @@ func TestGPS(t *testing.T) {
 		Distance:  50,
 		Data: []api.DataPoint{
 			{Time: mustParse("2012-10-15T09:32:00Z")},
-			{Time: mustParse("2012-10-15T09:35:00Z"), Longitude: 31.87315, Latitude: 28.915283, Elevation: 2814.324, Distance: 20},
+			{Time: mustParse("2012-10-15T09:35:00Z"), Longitude: 31.87315, Latitude: 28.91528, Elevation: 2814.324, Distance: 20},
 			{Time: mustParse("2012-10-15T09:37:00Z")},
-			{Time: mustParse("2012-10-15T09:40:00Z"), Longitude: 31.87212, Latitude: 28.915172, Elevation: 2816.279, Distance: 40},
+			{Time: mustParse("2012-10-15T09:40:00Z"), Longitude: 31.87212, Latitude: 28.91517, Elevation: 2816.279, Distance: 40},
 		},
 	}
 

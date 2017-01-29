@@ -16,8 +16,8 @@
             <DistanceMeters>20</DistanceMeters>
             <AltitudeMeters>2814.324</AltitudeMeters>
             <Position>
-              <LatitudeDegrees>28.915173</LatitudeDegrees>
-              <LongitudeDegrees>31.87212</LongitudeDegrees>
+              <LatitudeDegrees>28.91528</LatitudeDegrees>
+              <LongitudeDegrees>31.87315</LongitudeDegrees>
             </Position>
           </Trackpoint>
           <Trackpoint>
@@ -28,7 +28,7 @@
             <DistanceMeters>40</DistanceMeters>
             <AltitudeMeters>2816.279</AltitudeMeters>
             <Position>
-              <LatitudeDegrees>28.915173</LatitudeDegrees>
+              <LatitudeDegrees>28.91517</LatitudeDegrees>
               <LongitudeDegrees>31.87212</LongitudeDegrees>
             </Position>
           </Trackpoint>
