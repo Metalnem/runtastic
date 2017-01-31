@@ -45,7 +45,7 @@ func TestLogin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected := UserID("1519071252")
+	expected := "1519071252"
 
 	if session.userID != expected {
 		t.Fatalf("Expected %s, got %s", expected, session.userID)

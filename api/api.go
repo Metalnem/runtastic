@@ -50,9 +50,6 @@ var (
 		`"includeHeartRateZones":"true"`))
 )
 
-// UserID is unique user identifier.
-type UserID string
-
 // ActivityID is unique activity identifier.
 type ActivityID string
 
@@ -64,7 +61,7 @@ type Options struct {
 // Session contains session data for single authenticated user.
 type Session struct {
 	Options     Options
-	userID      UserID
+	userID      string
 	accessToken string
 	cookie      string
 }
@@ -120,7 +117,7 @@ type loginRequest struct {
 }
 
 type loginResponse struct {
-	UserID      UserID `json:"userId"`
+	UserID      string `json:"userId"`
 	AccessToken string `json:"accessToken"`
 }
 
