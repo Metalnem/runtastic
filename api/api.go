@@ -53,7 +53,7 @@ var (
 // ActivityID is unique activity identifier.
 type ActivityID string
 
-// Options contain parameters that configure how data traces are retrived and merged.
+// Options contain parameters that configure how data traces are retrieved and merged.
 type Options struct {
 	Tolerance int
 }
