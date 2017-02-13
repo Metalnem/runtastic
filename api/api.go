@@ -126,53 +126,38 @@ type loginResponse struct {
 	AccessToken string `json:"accessToken"`
 }
 
-type gpsData struct {
-	Trace string `json:"trace"`
-}
-
-type heartRateData struct {
-	AvgHeartRate  json.Number `json:"avg"`
-	MaxHeartReate json.Number `json:"max"`
-	Trace         string      `json:"trace"`
-}
-
-type additionalData struct {
-	Notes string `json:"notes"`
+type metadata struct {
+	ID                 ActivityID  `json:"id"`
+	DeletedAt          string      `json:"deletedAt"`
+	Type               json.Number `json:"sportTypeId"`
+	StartTime          jsonTime    `json:"startTime"`
+	EndTime            jsonTime    `json:"endTime"`
+	Calories           json.Number `json:"calories"`
+	Distance           json.Number `json:"distance"`
+	Duration           json.Number `json:"duration"`
+	GPSTraceAvailable  jsonBool    `json:"gpsTraceAvailable"`
+	HeartRateAvailable jsonBool    `json:"heartRateAvailable"`
+	GPSData            struct {
+		Trace string `json:"trace"`
+	} `json:"gpsData"`
+	HeartRateData struct {
+		AvgHeartRate  json.Number `json:"avg"`
+		MaxHeartReate json.Number `json:"max"`
+		Trace         string      `json:"trace"`
+	} `json:"heartRateData"`
+	AdditionalData struct {
+		Notes string `json:"notes"`
+	} `json:"additionalInfoData"`
 }
 
 type activitiesResponse struct {
-	SyncedUntil        string   `json:"syncedUntil"`
-	MoreItemsAvailable jsonBool `json:"moreItemsAvailable"`
-	Sessions           []struct {
-		ID                 ActivityID     `json:"id"`
-		DeletedAt          string         `json:"deletedAt"`
-		GPSTraceAvailable  jsonBool       `json:"gpsTraceAvailable"`
-		HeartRateAvailable jsonBool       `json:"heartRateAvailable"`
-		Type               json.Number    `json:"sportTypeId"`
-		StartTime          jsonTime       `json:"startTime"`
-		EndTime            jsonTime       `json:"endTime"`
-		Calories           json.Number    `json:"calories"`
-		Distance           json.Number    `json:"distance"`
-		Duration           json.Number    `json:"duration"`
-		GPSData            gpsData        `json:"gpsData"`
-		HeartRateData      heartRateData  `json:"heartRateData"`
-		AdditionalData     additionalData `json:"additionalInfoData"`
-	} `json:"sessions"`
+	SyncedUntil        string     `json:"syncedUntil"`
+	MoreItemsAvailable jsonBool   `json:"moreItemsAvailable"`
+	Sessions           []metadata `json:"sessions"`
 }
 
 type activityResponse struct {
-	RunSessions struct {
-		ID             ActivityID     `json:"id"`
-		Type           json.Number    `json:"sportTypeId"`
-		StartTime      jsonTime       `json:"startTime"`
-		EndTime        jsonTime       `json:"endTime"`
-		Calories       json.Number    `json:"calories"`
-		Distance       json.Number    `json:"distance"`
-		Duration       json.Number    `json:"duration"`
-		GPSData        gpsData        `json:"gpsData"`
-		HeartRateData  heartRateData  `json:"heartRateData"`
-		AdditionalData additionalData `json:"additionalInfoData"`
-	} `json:"runSessions"`
+	RunSessions metadata `json:"runSessions"`
 }
 
 func (gps gpsPoint) DataPoint() DataPoint {
@@ -282,6 +267,35 @@ func Login(ctx context.Context, email, password string) (*Session, error) {
 	}
 
 	return &session, nil
+}
+
+func convert(m metadata) (*Metadata, error) {
+	t, err := m.Type.Int64()
+
+	if err != nil {
+		return nil, err
+	}
+
+	calories, _ := m.Calories.Int64()
+	distance, _ := m.Distance.Int64()
+	duration, _ := m.Duration.Int64()
+	avgHeartRate, _ := m.HeartRateData.AvgHeartRate.Int64()
+	maxHeartRate, _ := m.HeartRateData.MaxHeartReate.Int64()
+
+	metadata := Metadata{
+		ID:            m.ID,
+		Type:          types[t],
+		StartTime:     time.Time(m.StartTime),
+		EndTime:       time.Time(m.EndTime),
+		Calories:      int32(calories),
+		Distance:      int32(distance),
+		Duration:      time.Duration(duration) * time.Millisecond,
+		AvgHeartRate:  int32(avgHeartRate),
+		MaxHeartReate: int32(maxHeartRate),
+		Notes:         m.AdditionalData.Notes,
+	}
+
+	return &metadata, nil
 }
 
 // GetActivityIDs returns list of IDs of all activities that have GPS trace available.
@@ -580,13 +594,6 @@ func (session *Session) GetActivity(ctx context.Context, id ActivityID) (*Activi
 	if err = decoder.Decode(&data); err != nil {
 		return nil, errors.Wrapf(err, "Invalid data received from server for activity %s", id)
 	}
-
-	t, err := data.RunSessions.Type.Int64()
-
-	if err != nil {
-		return nil, errors.Wrapf(err, "Invalid activity type received from server for activity %s", id)
-	}
-
 	gpsData, err := parseGPSData(data.RunSessions.GPSData.Trace)
 
 	if err != nil {
@@ -599,27 +606,14 @@ func (session *Session) GetActivity(ctx context.Context, id ActivityID) (*Activi
 		return nil, errors.Wrapf(err, "Invalid heart rate data received from server for activity %s", id)
 	}
 
-	calories, _ := data.RunSessions.Calories.Int64()
-	distance, _ := data.RunSessions.Distance.Int64()
-	duration, _ := data.RunSessions.Duration.Int64()
-	avgHeartRate, _ := data.RunSessions.HeartRateData.AvgHeartRate.Int64()
-	maxHeartRate, _ := data.RunSessions.HeartRateData.MaxHeartReate.Int64()
+	metadata, err := convert(data.RunSessions)
 
-	metadata := Metadata{
-		ID:            id,
-		Type:          types[t],
-		StartTime:     time.Time(data.RunSessions.StartTime),
-		EndTime:       time.Time(data.RunSessions.EndTime),
-		Calories:      int32(calories),
-		Distance:      int32(distance),
-		Duration:      time.Duration(duration) * time.Millisecond,
-		AvgHeartRate:  int32(avgHeartRate),
-		MaxHeartReate: int32(maxHeartRate),
-		Notes:         data.RunSessions.AdditionalData.Notes,
+	if err != nil {
+		return nil, errors.Wrapf(err, "Invalid activity type received from server for activity %s", id)
 	}
 
 	activity := Activity{
-		Metadata: metadata,
+		Metadata: *metadata,
 		Data:     merge(ctx, gpsData, heartRateData, session.Options.Tolerance),
 	}
 
