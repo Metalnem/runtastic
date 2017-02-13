@@ -43,9 +43,11 @@ func test(t *testing.T, activity api.Activity, path string) {
 
 func TestEmpty(t *testing.T) {
 	activity := api.Activity{
-		ID:        "1485532823",
-		StartTime: mustParse("2010-11-25T18:35:20Z"),
-		Notes:     "Test note!",
+		Metadata: api.Metadata{
+			ID:        "1485532823",
+			StartTime: mustParse("2010-11-25T18:35:20Z"),
+			Notes:     "Test note!",
+		},
 	}
 
 	test(t, activity, "../static/gpx/empty.gpx")
@@ -53,8 +55,10 @@ func TestEmpty(t *testing.T) {
 
 func TestGPS(t *testing.T) {
 	activity := api.Activity{
-		ID:        "1485532823",
-		StartTime: mustParse("2016-11-30T14:46:38Z"),
+		Metadata: api.Metadata{
+			ID:        "1485532823",
+			StartTime: mustParse("2016-11-30T14:46:38Z"),
+		},
 		Data: []api.DataPoint{
 			{Longitude: 20.472, Latitude: 44.80873, Elevation: 128.83632, Time: mustParse("2016-11-30T14:47:29Z")},
 			{Longitude: 20.47212, Latitude: 44.808666, Elevation: 128.83633, Time: mustParse("2016-11-30T14:47:32Z")},
@@ -67,8 +71,10 @@ func TestGPS(t *testing.T) {
 
 func TestHeartRate(t *testing.T) {
 	activity := api.Activity{
-		ID:        "1485532823",
-		StartTime: mustParse("2016-11-30T14:46:38Z"),
+		Metadata: api.Metadata{
+			ID:        "1485532823",
+			StartTime: mustParse("2016-11-30T14:46:38Z"),
+		},
 		Data: []api.DataPoint{
 			{HeartRate: 128, Time: mustParse("2016-11-30T14:47:29Z")},
 			{HeartRate: 129, Time: mustParse("2016-11-30T14:47:32Z")},

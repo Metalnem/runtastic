@@ -66,6 +66,20 @@ type Session struct {
 	cookie      string
 }
 
+// Metadata represents high-level overview of the single activity.
+type Metadata struct {
+	ID            ActivityID
+	Type          ActivityType
+	StartTime     time.Time
+	EndTime       time.Time
+	Calories      int32
+	Distance      int32
+	Duration      time.Duration
+	AvgHeartRate  int32
+	MaxHeartReate int32
+	Notes         string
+}
+
 // DataPoint represents single activity data point.
 type DataPoint struct {
 	Longitude float32
@@ -97,17 +111,8 @@ type heartRatePoint struct {
 
 // Activity contains metadata and collection of data points for single activity.
 type Activity struct {
-	ID            ActivityID
-	Type          ActivityType
-	StartTime     time.Time
-	EndTime       time.Time
-	Calories      int32
-	Distance      int32
-	Duration      time.Duration
-	AvgHeartRate  int32
-	MaxHeartReate int32
-	Notes         string
-	Data          []DataPoint
+	Metadata
+	Data []DataPoint
 }
 
 type loginRequest struct {
@@ -585,7 +590,7 @@ func (session *Session) GetActivity(ctx context.Context, id ActivityID) (*Activi
 	avgHeartRate, _ := data.RunSessions.HeartRateData.AvgHeartRate.Int64()
 	maxHeartRate, _ := data.RunSessions.HeartRateData.MaxHeartReate.Int64()
 
-	activity := Activity{
+	metadata := Metadata{
 		ID:            id,
 		Type:          types[t],
 		StartTime:     time.Time(data.RunSessions.StartTime),
@@ -596,7 +601,11 @@ func (session *Session) GetActivity(ctx context.Context, id ActivityID) (*Activi
 		AvgHeartRate:  int32(avgHeartRate),
 		MaxHeartReate: int32(maxHeartRate),
 		Notes:         data.RunSessions.AdditionalData.Notes,
-		Data:          merge(ctx, gpsData, heartRateData, session.Options.Tolerance),
+	}
+
+	activity := Activity{
+		Metadata: metadata,
+		Data:     merge(ctx, gpsData, heartRateData, session.Options.Tolerance),
 	}
 
 	if activity.Type.ID == 0 {

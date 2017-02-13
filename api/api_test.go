@@ -113,10 +113,12 @@ func TestGetActivityGPS(t *testing.T) {
 	activity := getActivity(t, id, "../static/json/gps.json")
 
 	expected := &Activity{
-		ID:        id,
-		Type:      ActivityType{1, "Running", "running"},
-		StartTime: time.Unix(1480085018, 0).UTC(),
-		EndTime:   time.Unix(1480085041, 0).UTC(),
+		Metadata: Metadata{
+			ID:        id,
+			Type:      ActivityType{1, "Running", "running"},
+			StartTime: time.Unix(1480085018, 0).UTC(),
+			EndTime:   time.Unix(1480085041, 0).UTC(),
+		},
 		Data: []DataPoint{
 			{Longitude: 20.470512, Latitude: 44.80998, Elevation: 129.74628, Time: mustParse("2016-11-25T14:43:38Z")},
 			{Longitude: 20.47056, Latitude: 44.809906, Elevation: 129.63553, Time: mustParse("2016-11-25T14:43:40Z")},
@@ -139,12 +141,14 @@ func TestGetActivityHeartRate(t *testing.T) {
 	activity := getActivity(t, id, "../static/json/heartRate.json")
 
 	expected := &Activity{
-		ID:            id,
-		Type:          ActivityType{3, "Cycling", "cycling"},
-		StartTime:     time.Unix(1482135300, 0).UTC(),
-		EndTime:       time.Unix(1482135324, 0).UTC(),
-		AvgHeartRate:  76,
-		MaxHeartReate: 82,
+		Metadata: Metadata{
+			ID:            id,
+			Type:          ActivityType{3, "Cycling", "cycling"},
+			StartTime:     time.Unix(1482135300, 0).UTC(),
+			EndTime:       time.Unix(1482135324, 0).UTC(),
+			AvgHeartRate:  76,
+			MaxHeartReate: 82,
+		},
 		Data: []DataPoint{
 			{HeartRate: 72, Time: mustParse("2016-12-19T08:15:00Z")},
 			{HeartRate: 82, Time: mustParse("2016-12-19T08:15:14Z")},
@@ -160,16 +164,18 @@ func TestGetActivityManual(t *testing.T) {
 	activity := getActivity(t, id, "../static/json/manual.json")
 
 	expected := &Activity{
-		ID:            id,
-		Type:          ActivityType{5, "Other", "other"},
-		StartTime:     time.Unix(1483025750, 0).UTC(),
-		EndTime:       time.Unix(1483031015, 0).UTC(),
-		Calories:      1183,
-		Distance:      12000,
-		Duration:      3750 * time.Second,
-		AvgHeartRate:  152,
-		MaxHeartReate: 178,
-		Notes:         "Test test test!",
+		Metadata: Metadata{
+			ID:            id,
+			Type:          ActivityType{5, "Other", "other"},
+			StartTime:     time.Unix(1483025750, 0).UTC(),
+			EndTime:       time.Unix(1483031015, 0).UTC(),
+			Calories:      1183,
+			Distance:      12000,
+			Duration:      3750 * time.Second,
+			AvgHeartRate:  152,
+			MaxHeartReate: 178,
+			Notes:         "Test test test!",
+		},
 	}
 
 	assertEquals(t, activity, expected)

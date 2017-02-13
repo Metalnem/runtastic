@@ -43,8 +43,10 @@ func test(t *testing.T, activity api.Activity, path string) {
 
 func TestEmpty(t *testing.T) {
 	activity := api.Activity{
-		ID:        "1485532823",
-		StartTime: mustParse("2010-11-25T18:35:20Z"),
+		Metadata: api.Metadata{
+			ID:        "1485532823",
+			StartTime: mustParse("2010-11-25T18:35:20Z"),
+		},
 	}
 
 	test(t, activity, "../static/tcx/empty.tcx")
@@ -52,15 +54,17 @@ func TestEmpty(t *testing.T) {
 
 func TestManual(t *testing.T) {
 	activity := api.Activity{
-		ID:            "1485608013",
-		Type:          api.ActivityType{ID: 1, DisplayName: "Running", ExportName: "running"},
-		StartTime:     mustParse("2016-12-10T17:32:40Z"),
-		Calories:      1250,
-		Distance:      9458,
-		Duration:      4250 * time.Second,
-		AvgHeartRate:  156,
-		MaxHeartReate: 182,
-		Notes:         "Test test test!",
+		Metadata: api.Metadata{
+			ID:            "1485608013",
+			Type:          api.ActivityType{ID: 1, DisplayName: "Running", ExportName: "running"},
+			StartTime:     mustParse("2016-12-10T17:32:40Z"),
+			Calories:      1250,
+			Distance:      9458,
+			Duration:      4250 * time.Second,
+			AvgHeartRate:  156,
+			MaxHeartReate: 182,
+			Notes:         "Test test test!",
+		},
 	}
 
 	test(t, activity, "../static/tcx/manual.tcx")
@@ -68,10 +72,12 @@ func TestManual(t *testing.T) {
 
 func TestGPS(t *testing.T) {
 	activity := api.Activity{
-		ID:        "1485610229",
-		StartTime: mustParse("2012-10-15T09:30:45Z"),
-		Duration:  10 * time.Second,
-		Distance:  50,
+		Metadata: api.Metadata{
+			ID:        "1485610229",
+			StartTime: mustParse("2012-10-15T09:30:45Z"),
+			Duration:  10 * time.Second,
+			Distance:  50,
+		},
 		Data: []api.DataPoint{
 			{Time: mustParse("2012-10-15T09:32:00Z")},
 			{Time: mustParse("2012-10-15T09:35:00Z"), Longitude: 31.87315, Latitude: 28.91528, Elevation: 2814.324, Distance: 20},
@@ -85,10 +91,12 @@ func TestGPS(t *testing.T) {
 
 func TestHeartRate(t *testing.T) {
 	activity := api.Activity{
-		ID:        "1485610229",
-		StartTime: mustParse("2012-10-15T09:30:45Z"),
-		Duration:  1234 * time.Second,
-		Distance:  9876,
+		Metadata: api.Metadata{
+			ID:        "1485610229",
+			StartTime: mustParse("2012-10-15T09:30:45Z"),
+			Duration:  1234 * time.Second,
+			Distance:  9876,
+		},
 		Data: []api.DataPoint{
 			{Time: mustParse("2012-10-15T09:35:00Z"), HeartRate: 150},
 			{Time: mustParse("2012-10-15T09:40:00Z"), HeartRate: 155},
