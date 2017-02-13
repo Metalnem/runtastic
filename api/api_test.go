@@ -52,26 +52,26 @@ func TestLogin(t *testing.T) {
 	}
 }
 
-func TestGetActivityIDs(t *testing.T) {
+func TestGetActivitiesMetadata(t *testing.T) {
 	close := handle("/webapps/services/runsessions/v3/sync", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"sessions":[{"id":"3031240871","gpsTraceAvailable":"true"}]}`)
+		fmt.Fprint(w, `{"sessions":[{"id":"3031240871","sportTypeId":1,"gpsTraceAvailable":"true"}]}`)
 	})
 
 	defer close()
-	ids, err := new(Session).GetActivityIDs(context.Background())
+	metadata, err := new(Session).GetActivitiesMetadata(context.Background())
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if len(ids) != 1 {
-		t.Fatalf("Expected single activity, got %d", len(ids))
+	if len(metadata) != 1 {
+		t.Fatalf("Expected single activity, got %d", len(metadata))
 	}
 
 	expected := ActivityID("3031240871")
 
-	if ids[0] != expected {
-		t.Fatalf("Expected %s, got %s", expected, ids[0])
+	if metadata[0].ID != expected {
+		t.Fatalf("Expected %s, got %s", expected, metadata[0].ID)
 	}
 }
 

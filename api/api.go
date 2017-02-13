@@ -269,11 +269,11 @@ func Login(ctx context.Context, email, password string) (*Session, error) {
 	return &session, nil
 }
 
-func convert(m metadata) (*Metadata, error) {
+func convert(m metadata) (Metadata, error) {
 	t, err := m.Type.Int64()
 
 	if err != nil {
-		return nil, err
+		return Metadata{}, errors.Wrapf(err, "Invalid activity type received from server for activity %s", m.ID)
 	}
 
 	calories, _ := m.Calories.Int64()
@@ -295,12 +295,12 @@ func convert(m metadata) (*Metadata, error) {
 		Notes:         m.AdditionalData.Notes,
 	}
 
-	return &metadata, nil
+	return metadata, nil
 }
 
-// GetActivityIDs returns list of IDs of all activities that have GPS trace available.
-func (session *Session) GetActivityIDs(ctx context.Context) ([]ActivityID, error) {
-	var activities []ActivityID
+// GetActivitiesMetadata returns list of metadata of all available activities.
+func (session *Session) GetActivitiesMetadata(ctx context.Context) ([]Metadata, error) {
+	var activities []Metadata
 
 	syncedUntil := "0"
 	hasMore := true
@@ -345,10 +345,14 @@ func (session *Session) GetActivityIDs(ctx context.Context) ([]ActivityID, error
 			for _, session := range data.Sessions {
 				if session.DeletedAt == "" {
 					l := len(activities)
-					id := ActivityID(session.ID)
+					activity, err := convert(session)
 
-					if l == 0 || activities[l-1] != id {
-						activities = append(activities, id)
+					if err != nil {
+						return err
+					}
+
+					if l == 0 || activities[l-1].ID != activity.ID {
+						activities = append(activities, activity)
 					}
 				}
 			}
@@ -609,11 +613,11 @@ func (session *Session) GetActivity(ctx context.Context, id ActivityID) (*Activi
 	metadata, err := convert(data.RunSessions)
 
 	if err != nil {
-		return nil, errors.Wrapf(err, "Invalid activity type received from server for activity %s", id)
+		return nil, err
 	}
 
 	activity := Activity{
-		Metadata: *metadata,
+		Metadata: metadata,
 		Data:     merge(ctx, gpsData, heartRateData, session.Options.Tolerance),
 	}
 
@@ -624,9 +628,9 @@ func (session *Session) GetActivity(ctx context.Context, id ActivityID) (*Activi
 	return &activity, nil
 }
 
-// GetActivities retrieves GPS traces and heart rate data for all available activities.
+// GetActivities retrieves metadata and traces for all available activities.
 func (session *Session) GetActivities(ctx context.Context) ([]Activity, error) {
-	ids, err := session.GetActivityIDs(ctx)
+	metadata, err := session.GetActivitiesMetadata(ctx)
 
 	if err != nil {
 		return nil, err
@@ -634,8 +638,8 @@ func (session *Session) GetActivities(ctx context.Context) ([]Activity, error) {
 
 	var activities []Activity
 
-	for _, id := range ids {
-		activity, err := session.GetActivity(ctx, id)
+	for _, metadata := range metadata {
+		activity, err := session.GetActivity(ctx, metadata.ID)
 
 		if err != nil {
 			return nil, err
