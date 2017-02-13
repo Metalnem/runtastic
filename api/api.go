@@ -126,37 +126,52 @@ type loginResponse struct {
 	AccessToken string `json:"accessToken"`
 }
 
+type gpsData struct {
+	Trace string `json:"trace"`
+}
+
+type heartRateData struct {
+	AvgHeartRate  json.Number `json:"avg"`
+	MaxHeartReate json.Number `json:"max"`
+	Trace         string      `json:"trace"`
+}
+
+type additionalData struct {
+	Notes string `json:"notes"`
+}
+
 type activitiesResponse struct {
 	SyncedUntil        string   `json:"syncedUntil"`
 	MoreItemsAvailable jsonBool `json:"moreItemsAvailable"`
 	Sessions           []struct {
-		ID                 ActivityID `json:"id"`
-		DeletedAt          string     `json:"deletedAt"`
-		GPSTraceAvailable  jsonBool   `json:"gpsTraceAvailable"`
-		HeartRateAvailable jsonBool   `json:"heartRateAvailable"`
+		ID                 ActivityID     `json:"id"`
+		DeletedAt          string         `json:"deletedAt"`
+		GPSTraceAvailable  jsonBool       `json:"gpsTraceAvailable"`
+		HeartRateAvailable jsonBool       `json:"heartRateAvailable"`
+		Type               json.Number    `json:"sportTypeId"`
+		StartTime          jsonTime       `json:"startTime"`
+		EndTime            jsonTime       `json:"endTime"`
+		Calories           json.Number    `json:"calories"`
+		Distance           json.Number    `json:"distance"`
+		Duration           json.Number    `json:"duration"`
+		GPSData            gpsData        `json:"gpsData"`
+		HeartRateData      heartRateData  `json:"heartRateData"`
+		AdditionalData     additionalData `json:"additionalInfoData"`
 	} `json:"sessions"`
 }
 
 type activityResponse struct {
 	RunSessions struct {
-		ID        ActivityID  `json:"id"`
-		Type      json.Number `json:"sportTypeId"`
-		StartTime jsonTime    `json:"startTime"`
-		EndTime   jsonTime    `json:"endTime"`
-		Calories  json.Number `json:"calories"`
-		Distance  json.Number `json:"distance"`
-		Duration  json.Number `json:"duration"`
-		GPSData   struct {
-			Trace string `json:"trace"`
-		} `json:"gpsData"`
-		HeartRateData struct {
-			AvgHeartRate  json.Number `json:"avg"`
-			MaxHeartReate json.Number `json:"max"`
-			Trace         string      `json:"trace"`
-		} `json:"heartRateData"`
-		AdditionalData struct {
-			Notes string `json:"notes"`
-		} `json:"additionalInfoData"`
+		ID             ActivityID     `json:"id"`
+		Type           json.Number    `json:"sportTypeId"`
+		StartTime      jsonTime       `json:"startTime"`
+		EndTime        jsonTime       `json:"endTime"`
+		Calories       json.Number    `json:"calories"`
+		Distance       json.Number    `json:"distance"`
+		Duration       json.Number    `json:"duration"`
+		GPSData        gpsData        `json:"gpsData"`
+		HeartRateData  heartRateData  `json:"heartRateData"`
+		AdditionalData additionalData `json:"additionalInfoData"`
 	} `json:"runSessions"`
 }
 
