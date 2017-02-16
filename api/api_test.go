@@ -58,7 +58,7 @@ func TestGetActivitiesMetadata(t *testing.T) {
 	})
 
 	defer close()
-	metadata, err := new(Session).GetActivitiesMetadata(context.Background())
+	metadata, err := new(Session).GetMetadata(context.Background())
 
 	if err != nil {
 		t.Fatal(err)

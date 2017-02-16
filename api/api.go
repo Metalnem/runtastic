@@ -298,8 +298,8 @@ func convert(m metadata) (Metadata, error) {
 	return metadata, nil
 }
 
-// GetActivitiesMetadata returns list of metadata of all available activities.
-func (session *Session) GetActivitiesMetadata(ctx context.Context) ([]Metadata, error) {
+// GetMetadata returns list of metadata of all available activities.
+func (session *Session) GetMetadata(ctx context.Context) ([]Metadata, error) {
 	var activities []Metadata
 
 	syncedUntil := "0"
@@ -630,7 +630,7 @@ func (session *Session) GetActivity(ctx context.Context, id ActivityID) (*Activi
 
 // GetActivities retrieves metadata and traces for all available activities.
 func (session *Session) GetActivities(ctx context.Context) ([]Activity, error) {
-	metadata, err := session.GetActivitiesMetadata(ctx)
+	metadata, err := session.GetMetadata(ctx)
 
 	if err != nil {
 		return nil, err
