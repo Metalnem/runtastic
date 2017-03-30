@@ -58,9 +58,8 @@ func getCredentials() (string, string, error) {
 	return "", "", errMissingCredentials
 }
 
-func getFilename(t time.Time, ext string) string {
-	s := t.Local().Format("2006-01-02 15.04.05")
-	return fmt.Sprintf("Runtastic %s.%s", s, ext)
+func formatTime(t time.Time) string {
+	return t.Local().Format("2006-01-02 15.04.05")
 }
 
 func checkedClose(c io.Closer, err *error) {
@@ -70,7 +69,7 @@ func checkedClose(c io.Closer, err *error) {
 }
 
 func export(activities []api.Activity, exp func(io.Writer) exporter, ext string) error {
-	filename := getFilename(time.Now(), "zip")
+	filename := fmt.Sprintf("Runtastic %s.%s", formatTime(time.Now()), "zip")
 	file, err := os.Create(filename)
 
 	if err != nil {
@@ -82,7 +81,7 @@ func export(activities []api.Activity, exp func(io.Writer) exporter, ext string)
 	defer checkedClose(zw, &err)
 
 	for _, activity := range activities {
-		filename := getFilename(activity.EndTime, ext)
+		filename := fmt.Sprintf("Runtastic %s %s.%s", formatTime(activity.EndTime), activity.Type.DisplayName, ext)
 
 		header := zip.FileHeader{
 			Name:   filename,
