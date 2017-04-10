@@ -68,7 +68,7 @@ func checkedClose(c io.Closer, err *error) {
 	}
 }
 
-func export(activities []api.Activity, exp func(io.Writer) exporter, ext string) error {
+func export(activities []api.Activity, exp func(io.Writer) exporter, ext string) (err error) {
 	filename := fmt.Sprintf("Runtastic %s.%s", formatTime(time.Now()), "zip")
 	file, err := os.Create(filename)
 
@@ -131,15 +131,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	session, err := api.Login(context.Background(), email, password)
+	ctx := context.Background()
+	session, err := api.Login(ctx, email, password)
 
 	if err != nil {
 		glog.Exit(err)
 	}
 
 	session.Options.Tolerance = *tolerance
-
-	ctx := context.Background()
 	activities, err := session.GetActivities(ctx)
 
 	if err != nil {
