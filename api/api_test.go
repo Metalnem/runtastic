@@ -115,7 +115,7 @@ func TestGetActivityGPS(t *testing.T) {
 	expected := &Activity{
 		Metadata: Metadata{
 			ID:        id,
-			Type:      ActivityType{1, "Running", "running"},
+			Type:      "Running",
 			StartTime: time.Unix(1480085018, 0).UTC(),
 			EndTime:   time.Unix(1480085041, 0).UTC(),
 		},
@@ -143,7 +143,7 @@ func TestGetActivityHeartRate(t *testing.T) {
 	expected := &Activity{
 		Metadata: Metadata{
 			ID:            id,
-			Type:          ActivityType{3, "Cycling", "cycling"},
+			Type:          "Biking",
 			StartTime:     time.Unix(1482135300, 0).UTC(),
 			EndTime:       time.Unix(1482135324, 0).UTC(),
 			AvgHeartRate:  76,
@@ -166,7 +166,7 @@ func TestGetActivityManual(t *testing.T) {
 	expected := &Activity{
 		Metadata: Metadata{
 			ID:            id,
-			Type:          ActivityType{5, "Other", "other"},
+			Type:          "Other",
 			StartTime:     time.Unix(1483025750, 0).UTC(),
 			EndTime:       time.Unix(1483031015, 0).UTC(),
 			Calories:      1183,

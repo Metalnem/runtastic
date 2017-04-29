@@ -81,7 +81,7 @@ func export(activities []api.Activity, exp func(io.Writer) exporter, ext string)
 	defer checkedClose(zw, &err)
 
 	for _, activity := range activities {
-		filename := fmt.Sprintf("Runtastic %s %s.%s", formatTime(activity.EndTime), activity.Type.DisplayName, ext)
+		filename := fmt.Sprintf("Runtastic %s %s.%s", formatTime(activity.EndTime), activity.Type, ext)
 
 		header := zip.FileHeader{
 			Name:   filename,

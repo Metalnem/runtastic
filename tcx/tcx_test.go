@@ -56,7 +56,7 @@ func TestManual(t *testing.T) {
 	activity := api.Activity{
 		Metadata: api.Metadata{
 			ID:            "1485608013",
-			Type:          api.ActivityType{ID: 1, DisplayName: "Running", ExportName: "running"},
+			Type:          "Running",
 			StartTime:     mustParse("2016-12-10T17:32:40Z"),
 			Calories:      1250,
 			Distance:      9458,

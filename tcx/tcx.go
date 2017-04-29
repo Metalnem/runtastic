@@ -116,10 +116,10 @@ func (exp *Exporter) Export(a api.Activity) error {
 		lap.MaxHeartReate = &a.MaxHeartReate
 	}
 
-	activity := activity{Sport: a.Type.ExportName, ID: startTime, Lap: lap}
+	activity := activity{Sport: a.Type, ID: startTime, Lap: lap}
 
 	if activity.Sport == "" {
-		activity.Sport = "other"
+		activity.Sport = "Other"
 	}
 
 	data := tcx{

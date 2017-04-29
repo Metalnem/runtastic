@@ -69,7 +69,7 @@ type Session struct {
 // Metadata represents high-level overview of the single activity.
 type Metadata struct {
 	ID            ActivityID
-	Type          ActivityType
+	Type          string
 	StartTime     time.Time
 	EndTime       time.Time
 	Calories      int32
@@ -269,6 +269,21 @@ func Login(ctx context.Context, email, password string) (*Session, error) {
 	return &session, nil
 }
 
+func getActivityType(id int64) string {
+	switch id {
+	case 1, 14:
+		return "Running"
+	case 3, 4, 15, 22:
+		return "Biking"
+	case 18:
+		return "Swimming"
+	case 2, 7, 19:
+		return "Walking"
+	default:
+		return "Other"
+	}
+}
+
 func convert(m metadata) (Metadata, error) {
 	t, err := m.Type.Int64()
 
@@ -284,7 +299,7 @@ func convert(m metadata) (Metadata, error) {
 
 	metadata := Metadata{
 		ID:            m.ID,
-		Type:          types[t],
+		Type:          getActivityType(t),
 		StartTime:     time.Time(m.StartTime),
 		EndTime:       time.Time(m.EndTime),
 		Calories:      int32(calories),
@@ -619,10 +634,6 @@ func (session *Session) GetActivity(ctx context.Context, id ActivityID) (*Activi
 	activity := Activity{
 		Metadata: metadata,
 		Data:     merge(ctx, gpsData, heartRateData, session.Options.Tolerance),
-	}
-
-	if activity.Type.ID == 0 {
-		activity.Type = types[5] // Default to "Other"
 	}
 
 	return &activity, nil
