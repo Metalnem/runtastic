@@ -3,9 +3,9 @@ Command line tool to archive all your Runtastic activities.
 
 ## Downloads
 
-[Windows](https://github.com/Metalnem/runtastic/releases/download/v2.0.1/runtastic-win64-2.0.1.zip)  
-[Mac OS X](https://github.com/Metalnem/runtastic/releases/download/v2.0.1/runtastic-darwin64-2.0.1.zip)  
-[Linux](https://github.com/Metalnem/runtastic/releases/download/v2.0.1/runtastic-linux64-2.0.1.zip)
+[Windows](https://github.com/Metalnem/runtastic/releases/download/v2.1.0/runtastic-win64-2.1.0.zip)  
+[Mac OS X](https://github.com/Metalnem/runtastic/releases/download/v2.1.0/runtastic-darwin64-2.1.0.zip)  
+[Linux](https://github.com/Metalnem/runtastic/releases/download/v2.1.0/runtastic-linux64-2.1.0.zip)
 
 ## Usage
 
