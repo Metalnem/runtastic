@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha1"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
@@ -38,6 +39,12 @@ const (
 
 var (
 	baseURL = "https://appws.runtastic.com"
+
+	client = http.Client{
+		Transport: &http.Transport{
+			TLSNextProto: make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
+		},
+	}
 
 	errAuthenticationFailed      = errors.New("Invalid email address or password")
 	errInvalidLoginResponse      = errors.New("Invalid login response from server")
@@ -227,8 +234,6 @@ func Login(ctx context.Context, email, password string) (*Session, error) {
 	}
 
 	setHeaders(req.Header)
-
-	client := new(http.Client)
 	resp, err := client.Do(req.WithContext(ctx))
 
 	if err != nil {
@@ -335,8 +340,6 @@ func (session *Session) GetMetadata(ctx context.Context) ([]Metadata, error) {
 
 			setHeaders(req.Header)
 			req.AddCookie(&http.Cookie{Name: sessionCookie, Value: session.cookie})
-
-			client := new(http.Client)
 			resp, err := client.Do(req.WithContext(newCtx))
 
 			if err != nil {
@@ -589,8 +592,6 @@ func (session *Session) GetActivity(ctx context.Context, id ActivityID) (*Activi
 
 	setHeaders(req.Header)
 	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: session.cookie})
-
-	client := new(http.Client)
 	resp, err := client.Do(req.WithContext(ctx))
 
 	setHeaders(req.Header)
