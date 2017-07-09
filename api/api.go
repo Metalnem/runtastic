@@ -17,6 +17,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"strconv"
 
 	"github.com/golang/glog"
 	"github.com/pkg/errors"
@@ -319,11 +320,11 @@ func convert(m metadata) (Metadata, error) {
 }
 
 // GetMetadata returns list of metadata of all available activities.
-func (session *Session) GetMetadata(ctx context.Context) ([]Metadata, error) {
+func (session *Session) GetMetadata(ctx context.Context, syncedUntil int64) ([]Metadata, error) {
 	var activities []Metadata
 
-	syncedUntil := "0"
 	hasMore := true
+	syncedUntilParam := strconv.FormatInt(syncedUntil * 1000, 10)
 
 	for hasMore {
 		err := func() error {
@@ -331,7 +332,7 @@ func (session *Session) GetMetadata(ctx context.Context) ([]Metadata, error) {
 			defer cancel()
 
 			url := baseURL + "/webapps/services/runsessions/v3/sync?access_token=" + session.accessToken
-			body := bytes.NewReader([]byte(fmt.Sprintf("{\"syncedUntil\":\"%s\"}", syncedUntil)))
+			body := bytes.NewReader([]byte(fmt.Sprintf("{\"syncedUntil\":\"%s\"}", syncedUntilParam)))
 			req, err := http.NewRequest(http.MethodPost, url, body)
 
 			if err != nil {
@@ -375,7 +376,7 @@ func (session *Session) GetMetadata(ctx context.Context) ([]Metadata, error) {
 				}
 			}
 
-			syncedUntil = data.SyncedUntil
+			syncedUntilParam = data.SyncedUntil
 
 			if hasMore, err = data.MoreItemsAvailable.Bool(); err != nil {
 				return err
@@ -641,8 +642,9 @@ func (session *Session) GetActivity(ctx context.Context, id ActivityID) (*Activi
 }
 
 // GetActivities retrieves metadata and traces for all available activities.
-func (session *Session) GetActivities(ctx context.Context) ([]Activity, error) {
-	metadata, err := session.GetMetadata(ctx)
+// syncedUntil -- Unix time of a moment until all activities are ignored.
+func (session *Session) GetActivities(ctx context.Context, syncedUntil int64) ([]Activity, error) {
+	metadata, err := session.GetMetadata(ctx, syncedUntil)
 
 	if err != nil {
 		return nil, err

@@ -23,12 +23,15 @@ const usage = `Usage of Runtastic Archiver:
   -password string
     	Password (required)
   -format string
-    	Output format (gpx or tcx)`
+    	Output format (gpx or tcx)
+  -laterThan string
+    	Archives only activities after the specified date`
 
 var (
 	email     = flag.String("email", "", "")
 	password  = flag.String("password", "", "")
 	format    = flag.String("format", "gpx", "")
+	laterThan = flag.String("laterThan", "", "")
 	tolerance = flag.Int("tolerance", 15, "")
 
 	errMissingCredentials = errors.New("Missing email address or password")
@@ -139,7 +142,15 @@ func main() {
 	}
 
 	session.Options.Tolerance = *tolerance
-	activities, err := session.GetActivities(ctx)
+	syncedUntil := int64(0)
+	if *laterThan != "" {
+		laterThanDate, err := time.Parse(time.RFC3339, *laterThan)
+		if err != nil {
+			glog.Exit(err)
+		}
+		syncedUntil = laterThanDate.Unix()
+	}
+	activities, err := session.GetActivities(ctx, syncedUntil)
 
 	if err != nil {
 		glog.Exit(err)
