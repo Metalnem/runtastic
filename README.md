@@ -20,6 +20,10 @@ Usage of ./runtastic:
     	Output format (gpx or tcx)
 ```
 
+If your are not very comfortable with the command line, you can watch this
+[video tutorial](https://www.youtube.com/watch?v=EMYozDasOv8) (courtesy
+of [Michael Pohl](https://github.com/mipapo), creator of [RUNALYZE](https://runalyze.com/en/login)).
+
 ## Example
 
 ```
