@@ -614,6 +614,7 @@ func (session *Session) GetActivity(ctx context.Context, id ActivityID) (*Activi
 	if err = decoder.Decode(&data); err != nil {
 		return nil, errors.Wrapf(err, "Invalid data received from server for activity %s", id)
 	}
+
 	gpsData, err := parseGPSData(data.RunSessions.GPSData.Trace)
 
 	if err != nil {
