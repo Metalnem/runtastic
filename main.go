@@ -25,7 +25,7 @@ const usage = `Usage of Runtastic Archiver:
   -format string
     	Output format (gpx or tcx)
   -laterThan string
-    	Archives only activities after the specified date`
+    	Archives only activities after the specified date (in RFC3339 format)`
 
 var (
 	email     = flag.String("email", "", "")
